@@ -74,7 +74,7 @@ eps_file3.close()
 eps_file_complete_random.close()
 eps_file_short_random.close()
 '''
-
+'''
 #%% MERGE DATA FILES FOR DIFFERENT PRECISIONS
 
 # SOURCE FILES (EDIT HERE)
@@ -110,3 +110,4 @@ for i in range(len(prec_list)):
     source_files[i].close()
 
 file_target.close()
+'''

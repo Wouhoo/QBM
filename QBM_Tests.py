@@ -26,17 +26,20 @@ ratio_list = {'Uniform Ising model': [0.2, 0.5, 0.8, 0.9, 0.99, 1, 1.01, 1.1, 1.
 beta = 1
 kmin = 3
 precision = 1e-6   # WARNING: A high target precision may make the testing process take very long!
-max_qbm_it = 10000
+max_qbm_it = 100000
 q = 1e-3           # Tuned for uniform ising model with J/h < 1, n <= 6
 alpha0 = np.sqrt(q)
 
 ### RUN TESTS & SAVE DATA USING h5py ###
 # Don't forget to change filedir in the imports section!
-f = h5py.File(filedir + '/Data_n8firsthalf_1e-6.hdf5','w')
+f = h5py.File(filedir + '/Data_n8firsthalf_1e-6.hdf5','a')
 eps_file = h5py.File(filedir + '/Eps_Data_short_modified.hdf5','r') # File containing best epsilon values
 
 #Unif_Ising_group = f.create_group("Uniform Ising model")
-Random_Ising_group = f.create_group("Random Ising model")
+try:
+    Random_Ising_group = f.create_group("Random Ising model")
+except:
+    Random_Ising_group = f["Random Ising model"]
 
 # WARNING: Tests for large n take very long! 
 # This is heavily dependent on intialization, but for n = 8, runs can already up to 90 minutes per Hamiltonian - Optimizer combination...
@@ -52,10 +55,14 @@ for key, model_group in f.items():
     
     for n in n_list:
         print("Starting n = {}".format(n)) # DEBUG
-        n_group = model_group.create_group("n = {}".format(n))
-        n_group.attrs['n'] = n
+        # Create new n group. If it already exists: read the existing one
+        try:
+            n_group = model_group.create_group("n = {}".format(n))
+            n_group.attrs['n'] = n
+        except:
+            n_group = model_group["n = {}".format(n)]
+
         H_counter = 1
-        
         for ratio in ratio_list[key]:
             # Create Hamiltonian & train QBM
             H, H_params_w, H_params_b = create_H(n, uniform_weights, ratio)
@@ -66,16 +73,32 @@ for key, model_group in f.items():
             opt_loss = beta * (eta @ H).trace() + np.log(expm(-beta * H).trace()) # Loss for exact parameters (minimum loss)
             
             print("\t Starting Hamiltonian {}".format(H_counter)) # DEBUG
-            H_group = n_group.create_group("Hamiltonian {}".format(H_counter))
-            H_group.attrs['H_params_w'] = H_params_w
-            H_group.attrs['H_params_b'] = H_params_b
-            
+            # Create new Hamiltonian group. If it already exists: read the existing one
+            try:
+                H_group = n_group.create_group("Hamiltonian {}".format(H_counter))
+                H_group.attrs['H_params_w'] = H_params_w
+                H_group.attrs['H_params_b'] = H_params_b
+            except:
+                H_group = n_group["Hamiltonian {}".format(H_counter)]                
+
             for optimizer in optimizer_list:
                 print("\t\t Starting optimizer {}".format(optimizer)) # DEBUG
+                # Create new optimizer group. If it already exists: read the existing one
+                try:
+                    opt_group = H_group.create_group(optimizer)
+                    opt_group.attrs['Optimizer'] = optimizer
+                except:
+                    opt_group = H_group[optimizer]
+                    # If optimizer group already exists, check if it already has data
+                    try:
+                        test = opt_group['Total iterations'][()]
+                    except: # If not, continue testing
+                        print("\t\t Optimizer group already exists, but has no data. Commencing testing")
+                    else: # If data does exist, move on to next optimizer
+                        print("\t\t Optimizer group already exists with data, moving on to next optimizer")
+                        continue
+                    
                 start_time = time() # To time how long execution takes
-                opt_group= H_group.create_group(optimizer)
-                opt_group.attrs['Optimizer'] = optimizer
-                
                 # Average the number of iterations over different initializations
                 avg_iterations = []
                 first_loop = True
@@ -97,6 +120,3 @@ for key, model_group in f.items():
 
 total_time_end = time()
 print("---------- Tests finished on " + datetime.fromtimestamp(total_time_end).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(total_time_end - total_time_start) + " seconds ----------")
-
-f.close()
-eps_file.close()

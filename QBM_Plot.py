@@ -3,13 +3,13 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import h5py     # To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser!
+import h5py     # To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser, or use the VSCode extension H5Web
 
 # Directory where the data may be found
 filedir = "./Data"
 
 #%%% PLOT RESULTS OF TESTS (INDIVIDUAL HAMILTONIANS) %%%
-
+'''
 f = h5py.File(filedir + '\\Data.hdf5','r')
 
 plt.figure(figsize = (16,8))
@@ -62,7 +62,8 @@ plt.ylabel("Iterations")
 
 f.close()
 plt.show()
-    
+'''    
+
 #%%% PLOT RESULTS OF TESTS (ITERATIONS VS PRECISION) %%%
 
 # Parameters for which to compare the optimizers

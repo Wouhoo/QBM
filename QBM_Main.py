@@ -1,5 +1,5 @@
 ### MAIN QBM FILE ###
-# Contains QBM class & auxiliary functions
+# Contains QBM class & auxiliary functions commonly used by other files
 
 import numpy as np
 from scipy.linalg import expm, norm
@@ -13,7 +13,7 @@ def kron_array(a):
     return result
 
 def weight_mul(b, op_array):
-    '''Returns the sum of the operators in op_array weighted by the weights b.
+    '''Returns the weighted sum of the operators in op_array with weights b.
     
     Parameters
     ----------
@@ -22,6 +22,7 @@ def weight_mul(b, op_array):
     '''
     return np.tensordot(b, op_array, axes=1)
 
+# Pauli spin matrices
 I = [[1,0],[0,1]]
 Z = [[1,0],[0,-1]]
 X = [[0,1],[1,0]]
@@ -53,7 +54,7 @@ def make_op_arrays(n):
 
 def create_H(n, uniform_weights, mag_ratio=1):
     '''Creates a random target Hamiltonian for the QBM to train on.
-    The Hamiltonian will be of the form H = sum J_ij z_i z_j + sum h_i x_i.
+    The Hamiltonian will be of the form H = sum J_ij z_i z_j + sum h_i x_i. (Ising model)
     
     Parameters
     ----------
@@ -62,7 +63,8 @@ def create_H(n, uniform_weights, mag_ratio=1):
     uniform_weights: boolean, required
         If true, weights will be uniform (J_ij = J and h_i = h for all i,j); else, weights will be chosen randomly from [-1,1].
     mag_ratio : float, optional
-        Only used if uniform_weights = True; the ratio between J and h.
+        Only used if uniform_weights = True; the ratio between J and h. 
+        Critical temperature is reached at J/h = 1, at which point the QBM should learn fastest.
         
     Returns
     ----------
@@ -87,7 +89,7 @@ class QBM():
     '''
     Class that implements a Quantum Boltzmann Machine.
     
-    Parameters
+    Initialization parameters
     ----------
     eta : 2^n x 2^n complex matrix, required
         Density matrix of the data, used as target for the QBM.
