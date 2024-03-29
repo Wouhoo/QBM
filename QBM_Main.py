@@ -4,6 +4,9 @@
 import numpy as np
 from scipy.linalg import expm, norm
 
+# Directory where data is stored and read. EDIT HERE if you want to change this folder (translates to other modules as well)
+filedir = "./Data"
+
 #%%% AUXILIARY FUNCTIONS %%%
 def kron_array(a):
     '''Returns the Kronecker product of the elements of array a.'''
@@ -93,8 +96,6 @@ class QBM():
     ----------
     eta : 2^n x 2^n complex matrix, required
         Density matrix of the data, used as target for the QBM.
-    stat : float, required
-        Statistic (usually the expectation value) of eta (CURRENTLY UNUSED, but calculated from eta)
     n : positive int, optional
         The number of qubits (default 2)
     beta: positive float, optional
@@ -105,39 +106,38 @@ class QBM():
         self.n = n
         self.eta = eta
         self.beta = beta
-        #self._target_stat = stat
         
         self._op_ar_z, self._op_ar_x, self._op_ar_zz = make_op_arrays(n)
     
     ### EXTERNAL (PUBLIC) METHODS ###
-    def learn(self, optimizer, uniform=False, q=1e-3, alpha0=np.sqrt(1e-3), kmin=3, max_qbm_it=50000, precision=1e-7, epsilon=0.25, scale=0.5, track_all=True):
+    def learn(self, optimizer, q=1e-3, alpha0=np.sqrt(1e-3), kmin=3, max_qbm_it=10000, precision=1e-4, epsilon=0.05, scale=0.5, track_all=True):
         '''
         Function for learning the QBM, based on the Ising model: H = sum J[i,j] sigma_z[i] sigma_z[j] + sum h[i] sigma_x[i]
 
         Parameters
         ----------
-        optimizer : positive int (in Optimizer dict), required
+        optimizer : string, required
             The optimizer used for learning the QBM. Permitted values:
-            - 'GD': Standard Gradient Descent
-            - 'Nesterov_Book': Original Nesterov scheme as proposed by Nesterov in his book on convex optimization
-            - 'Nesterov_SBC': Original Nesterov scheme with modified momentum parameter, taken from the paper by Su, Boyd and Canes
-            - 'Nesterov_GR': Gradient Restarting Nesterov scheme
-            - 'Nesterov_SR': Speed Restarting Nesterov scheme
-        uniform : boolean, optional
-            Whether the model weights should be uniform (J[i,j] = J and h[i] = h for all i,j) or random (default False, meaning random weights).
+            - 'GD': Standard Gradient Descent.
+            - 'Nesterov_Book': Original Nesterov scheme as proposed by Nesterov in his book on convex optimization (2004, 2nd edition in 2018).
+            - 'Nesterov_SBC': Original Nesterov scheme with modified momentum parameter, taken from the paper by Su, Boyd and Candes (2015).
+            - 'Nesterov_GR': Gradient Restarting Nesterov scheme, as proposed by O'Donoghue and Candes (2012).
+            - 'Nesterov_SR': Speed Restarting Nesterov scheme, as proposed by Su, Boyd and Candes (2015).
         kmin : positive int, optional
             Used only if optimizer == Nesterov_SR; the minimum number of iterations between restarts.
         q : positive float, optional
-            Used only if optimizer == Nesterov_Book; q = mu/L is the ratio between the function's strong convexity constant and its Lipschitz constant.
+            Used only if optimizer == Nesterov_Book; used for calculating the momentum parameter.
+            q = mu/L is the ratio between the function's strong convexity constant and its Lipschitz constant. 
             Since this is difficult to compute in general, it is treated as a hyperparameter here.
         alpha0 : positive float in (0,1), optional
-            Used only if optimizer == Nesterov_Book; initialization for the alpha parameter
+            Used only if optimizer == Nesterov_Book; initialization for the alpha parameter, used in calculating the momentum parameter.
         max_qbm_it : positive int, optional
-            Max number of training iterations of the QBM (default 1000).
+            Max number of training iterations of the QBM (default 10000).
         precision: positive float, optional
-            The desired precision of the QBM's approximation of the data (default 1e-13).
+            The desired precision of the QBM's approximation of the data (default 1e-4).
+            With the current implementation, this means the QBM will stop learning when the norm of the weight update in an iteration is smaller than this number.
         epsilon : positive float, optional
-            Step size of gradient descent (default 0.05)
+            Step size of the optimization schemes (default 0.05)
         scale : positive float, optional
             Standard deviation of the weight intialization (default 0.5)
         track_all: boolean, optional
@@ -151,17 +151,7 @@ class QBM():
         self._epsilon = epsilon
         self._precision = precision
         
-        # Initialize weights randomly (maybe implement some smart start later)
-        # UNFINISHED: Start with uniform weights
-        # I've yet to figure out if we want to change the learning process if the model is uniform...
-        # Realistically, we should, since learning n + n^2 different weights when there are only 2 is excessive,
-        # even if all weights converge to the right uniform weights (h[i]_model -> h_exact and likewise for J).
-        #if(uniform):
-        #    h_unif = np.random.normal(loc=0, scale=scale, size=1)
-        #    h = np.array([h_unif for i in range(self.n)])
-        #    J_unif = np.random.normal(loc=0, scale=scale, size=1)
-        #    J = np.array([[J_unif for i in range(self.n)] for j in range(self.n)])
-        #else:
+        # Initialize weights randomly
         h = np.random.normal(loc=0, scale=scale, size=self.n)    
         J = np.random.normal(loc=0, scale=scale, size=(self.n, self.n))
         
@@ -169,7 +159,7 @@ class QBM():
         J = (J + J.T)/2
         self._make_diagonal_zero(J)
         
-        # Auxiliary variables for momentum + stopping criterion
+        # Auxiliary variables for momentum & stopping criterion
         h_prev = h.copy()
         J_prev = J.copy()
         
@@ -197,14 +187,15 @@ class QBM():
             self._h_QBM_track = []
             self._stat_QBM_track = []
         
-        self.qbm_it = 0
+        self.qbm_it = 0      # Total iterations
         it_since_restart = 0 # Iterations since the last restart (in case of restarting Nesterov)
         
         # For stopping criterion & speed restarting scheme: 
-        # initialize steps (new = ||x_k - x_k-1|| and old = ||x_k-1 - x_k-2||)
+        # initialize steps (new = ||x_k - x_k-1|| and old = ||x_k-1 - x_k-2|| with x_k the parameter vector in step k)
         step_old = 0
         step_new = 0
         
+        # Compute target statistics based on provided density matrix eta
         self._target_stat = {'sigma_zz':[], 'sigma_x':[]}
         self._model_stat = {'sigma_zz':[], 'sigma_x':[]}
         
@@ -218,23 +209,21 @@ class QBM():
             loss_i = self._give_loss_qbm()
         
             # Compute gradient
-            # This can be done exactly for small systems (calculating the expectation value exactly)
+            # This can be done exactly for small systems:
+            #   dh[i] = eta_expectation(self._op_ar_x[i]) - rho_expectation(self._op_ar_x[i])
+            #   dJ[i,j] = eta_expectation(self._op_ar_zz[i,j]) - rho_expectation(self._op_ar_zz[i,j])
+            # where eta_expectation(A) = Tr(eta @ A) and rho_expectation(A) = Tr(rho @ A)
+
             #start_time = time() # DEBUG
             
             self._model_stat['sigma_zz'] = [self._give_expectation(self._rho_m, self._op_ar_zz[i]) for i in range(self.n**2)]
             self._model_stat['sigma_x'] = [self._give_expectation(self._rho_m, self._op_ar_x[i]) for i in range(self.n)]
             
-            #end_time = time() # DEBUG
-            #print("Gradient computation time: " + str(end_time - start_time)) # DEBUG
-            
-            # Perform a gradient descent step
-            # In the exact case:
-            #   dh[i] = eta_expectation(self._op_ar_x[i]) - rho_expectation(self._op_ar_x[i])
-            #   dJ[i,j] = eta_expectation(self._op_ar_zz[i,j]) - rho_expectation(self._op_ar_zz[i,j])
-            # where eta_expectation(A) = Tr(eta @ A) and rho_expectation(A) = Tr(rho @ A)
-            
             dJ = np.array([self._target_stat['sigma_zz'][i] - self._model_stat['sigma_zz'][i] for i in range(self.n**2)]).reshape((self.n, self.n))
             dh = np.array([self._target_stat['sigma_x'][i] - self._model_stat['sigma_x'][i] for i in range(self.n)])
+
+            #end_time = time() # DEBUG
+            #print("Gradient computation time: " + str(end_time - start_time)) # DEBUG
 
             ##### METHOD: Standard GD #####
             #start_time = time() # DEBUG
@@ -259,7 +248,7 @@ class QBM():
                     # Momentum parameter for Su, Boyd and Canes' method (and restarting variants)
                     mom_coef = (self.qbm_it - 1)/(self.qbm_it + 2)
                 
-                # Update parameters - the d_ (gradient) steps are calculated w.r.t. the auxiliary (_nest) parameters
+                # Update parameters (notice that the dJ/dh gradient steps are calculated w.r.t. the Hamiltonian evaluated in the auxiliary (_nest) parameters)
                 h = h_nest - epsilon*dh
                 J = J_nest - epsilon*dJ
                 
@@ -300,6 +289,7 @@ class QBM():
             ##### RESTART NESTEROV #####
             if((optimizer == 'Nesterov_GR' and self._give_x(dJ, dh).T @ (self._give_x(J,h) - self._give_x(J_prev,h_prev)) > 0) or
                (optimizer == 'Nesterov_SR' and it_since_restart > kmin and step_new < step_old)):
+                # Kill the momentum
                 h_nest = h.copy()
                 J_nest = J.copy()
                 
@@ -307,12 +297,6 @@ class QBM():
             
             # For speed restarting scheme: update previous step
             step_old = step_new
-                
-            # VARIABLE STEPSIZE (unused)
-            #if dl > 0:                          # Update step size based on dl
-                #epsilon = epsilon/2             # Reduce step size if loss was increased (we overstepped)
-            #else:
-                #epsilon = min(1.01*epsilon, 1)  # Increase step size if loss was decreased (we'll try to be a little more agressive)
                 
             # Stop learning if the stopping criterion has been reached
             if step_new < precision:
@@ -332,24 +316,23 @@ class QBM():
     ### INTERNAL (PRIVATE) METHODS ###  
     def _give_H_m_op(self, J, h):
         '''Returns the model Ising Hamiltonian for weights J, h in operator form'''
-        # The Hamiltonian is currently hardcoded to be of the following form:
-        # H = sum J_ij z_i z_j + sum h_i x_i
+        # The Hamiltonian is currently hardcoded to follow the Ising model: H = sum J_ij z_i z_j + sum h_i x_i
         return weight_mul(J.reshape(-1), self._op_ar_zz) + weight_mul(h, self._op_ar_x)
     
     def _give_H_m_matrix(self, J, h):
-        '''Returns the model Ising Hamiltonian for weights J, h in (real) matrix form'''
+        '''Returns the model Ising Hamiltonian for weights J, h in real matrix form'''
         return self._give_H_m_op(J, h).real
     
     def _give_expectation(self, dens_matrix, operator):
-        '''Returns the expectation value of operator (2^n x 2^n matrix) given a density matrix (2^n x 2^n)'''
+        '''Returns the expectation value of operator (2^n x 2^n matrix) given a density matrix dens_matrix (2^n x 2^n matrix)'''
         return (dens_matrix @ operator).trace()
     
     def _give_distance(self, J1, h1, J2, h2, norm_ord = None):
         '''Returns the distance between the parameter vectors (J1, h1) and (J2, h2) in the given norm (default: Euclidean norm)'''
         return norm(self._give_x(J1.reshape(-1), h1) - self._give_x(J2.reshape(-1), h2), ord=norm_ord)
+    
     def _give_expeta_H_m(self):
-        '''Returns Tr(eta * H_m)'''
-        #? Wait, what does the 'exp' in the name mean? Expectation value?
+        '''Returns Tr(eta * H_model)'''
         return (self.eta @ self._H_m_matrix).trace()
     
     def _give_Z_m(self):
@@ -357,11 +340,11 @@ class QBM():
         return self._Z
     
     def _give_x(self, J, h):
-        '''Returns the model weights stacked as a column vector'''
+        '''Returns the weights J and h stacked as a column vector'''
         return np.concatenate((J.reshape(-1), h))
     
     def _give_L(self):
-        '''Returns Tr(eta * log(rho)), the quantum likelihood of the QBM'''
+        '''Returns the quantum (log) likelihood of the QBM'''
         return -self.beta * self._give_expeta_H_m() - np.log(self._Z_m)
     
     def _give_loss_qbm(self):
@@ -369,7 +352,7 @@ class QBM():
         return -self._give_L()
     
     def _give_stat_QBM(self):
-        '''Returns the expectation values of the spin operators wrt the model'''
+        '''Returns the expectation values of the spin operators w.r.t. the model'''
         return self._model_stat
     
     def _make_diagonal_zero(self, J):
@@ -380,28 +363,35 @@ class QBM():
     ### PROPERTIES ###
     @property
     def stat_QBM_track(self):
+        '''Tracks QBM statistics (expectation values of operators w.r.t. the model Hamiltonian)'''
         return self._stat_QBM_track
     @property
     def dl_QBM_track(self):
+        '''Tracks loss difference in each step'''
         return self._dl_QBM_track
     @property
     def loss_QBM_track(self):
+        '''Tracks training loss'''
         return self._loss_QBM_track
     @property
     def J_QBM_track(self):
+        '''Tracks model J (z-spin coupling weights)'''
         return self._J_QBM_track
     @property
     def h_QBM_track(self):
+        '''Tracks model h (x-spin weights)'''
         return self._h_QBM_track
     
     #  nontracked properties 
     @property 
     def learned_params(self):
+        '''Returns parameters learned after training'''
         return {'J':self._J, 'h':self._h}
     @property
     def L(self):
+        '''Returns QBM loss after training'''
         return self._give_L()
     @property
     def model_stat(self):
-        '''Returns the stat for <sigma_z[i] sigma_z[j]> and <sigma_x[i]> after learning finishes'''
+        '''Returns model statistics <sigma_z[i] sigma_z[j]> and <sigma_x[i]> after training'''
         return self._model_stat

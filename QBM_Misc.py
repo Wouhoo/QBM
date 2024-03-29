@@ -1,16 +1,15 @@
 ### MISCELLANEOUS ###
-# Miscellaneous/old code snippets for reference
+# Miscellaneous/old code snippets and tests for reference. Not very well documented.
+# WARNING: These may apply to a previous version of the code, and as such, might not work with the current structure!
 
 import numpy as np
-import h5py     # To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser!
+import h5py     # To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser, or use the VSCode extension H5Web
+from QBM_Main import filedir
 
-# Directory where data may be found
-filedir = "./Data"
+# Close data files after testing
+#f.close()
+#eps_file.close()
 
-f.close()
-eps_file.close()
-
-#%%% TEMP / OLD %%%
 '''
 # Test
 eps_file = h5py.File(filedir + '\\Eps_Data.hdf5','r')
@@ -50,6 +49,8 @@ for key, _ in f.items():
 '''
 '''
 #%% MODIFY NESTEROV EPSILONS
+# It appears something went wrong when tuning stepsize for n = 4, which caused the "optimal" step size to be too large in most cases.
+# To avoid having to re-run the code (which would likely take a day or two), I'll manually decrease all optimal step sizes to one value lower using this snippet.
 
 eps_file_complete_random = h5py.File(filedir + '/Eps_Data_complete_random.hdf5','r') # File to write all data to
 eps_file_short_random = h5py.File(filedir + '/Eps_Data_short_random.hdf5','r') # File to write only the best epsilon per (model, n, optimizer) combo to
@@ -70,7 +71,7 @@ eps_file_short_modified.close()
 '''
 
 '''
-# Check which optimizers exhibit sawtooth-behavior
+# Check which optimizers exhibit sawtooth-behavior (useful to check where stepsize is too large)
 f = h5py.File(filedir + '/Data_random_until1e-5.hdf5','r')
 
 for precision in ["1e-1", "1e-2", "1e-3", "1e-4", "1e-5"]:
