@@ -11,3 +11,9 @@ Files in this repository:
 - <b>QBM_TuneParams.py</b>: Code for tuning hyperparameters of the QBM, particularly stepsize.
 - <b>QBM_MergeData.py</b>: When running tests in multiple runs and/or on different devices, this code can be used to merge the resulting data files together.
 - <b>QBM_Misc.py</b>: Various old code snippets for reference. Not documented very well.
+
+- <b>Data folder</b>: Folder containing data files in HDF5 format. The most import files here:
+  - <b>Data_random_until1e-5.hdf5</b>: Results of testing for all optimizers and all n, for the Random Ising model, up to precision 1e-5.
+  - <b>Eps_Data_short_modified.hdf5</b>: Containg the optimal step sizes for all (n, optimizer) combo's for the Random Ising model (Uniform Ising model is still underway)
+
+To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser, or use the VSCode extension H5Web.
