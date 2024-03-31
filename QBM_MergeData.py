@@ -9,14 +9,14 @@ from QBM_Main import filedir
 #%%% MERGE DATA FILES TOGETHER %%%
 # Example of how to merge data files when testing is split into 3 runs: all optimizer until n = 6, GD and Nesterov_Book for n = 8, and Nesterov_SBC, Nesterov_GR and Nesterov_SR for n = 8
 # All these tests are executed for the same precision, in this case 1e-5
-
+#'''
 # Source files (EDIT HERE)
-file1 = h5py.File(filedir + '/Data_untiln6_1e-5.hdf5','r')      # All optimizers until n = 6
-file2 = h5py.File(filedir + '/Data_n8firsthalf_1e-5.hdf5','r')  # n = 8, GD and Nesterov_Book
-file3 = h5py.File(filedir + '/Data_n8secondhalf_1e-5.hdf5','r') # n = 8, Nesterov_SBC, Nesterov_GR and Nesterov_SR
+file1 = h5py.File(filedir + '/Data_untiln6_1e-6.hdf5','r')      # All optimizers until n = 6
+file2 = h5py.File(filedir + '/Data_n8firsthalf_1e-6.hdf5','r')  # n = 8, GD and Nesterov_Book
+file3 = h5py.File(filedir + '/Data_n8secondhalf_1e-6.hdf5','r') # n = 8, Nesterov_SBC, Nesterov_GR and Nesterov_SR
 
 # Target files (EDIT HERE)
-file_target = h5py.File(filedir + '/Data_random_1e-5.hdf5','w') # File to write all data to
+file_target = h5py.File(filedir + '/Data_random_1e-6.hdf5','w') # File to write all data to
 
 # Parameters to merge (EDIT HERE)
 model = "Random Ising model"
@@ -46,7 +46,7 @@ file1.close()
 file2.close()
 file3.close()
 file_target.close()
-
+#'''
 '''
 #%%% MERGE DATA FILES FOR DIFFERENT PRECISIONS %%%
 # Example of how to merge complete data files (made using the above script) for different precisions into one big file
@@ -90,15 +90,15 @@ file_target.close()
 # Example of how to merge different epsilon files (created using the QBM_TuneParams script), similar to the first script
 
 # Source files (EDIT HERE)
-file1 = h5py.File(filedir + '/Eps_Data_untiln6.hdf5','r')      # All optimizers until n = 6
-file2 = h5py.File(filedir + '/Eps_Data_n8firsthalf.hdf5','r')  # n = 8, GD and Nesterov_Book
-file3 = h5py.File(filedir + '/Eps_Data_n8secondhalf.hdf5','r') # n = 8, Nesterov_SBC, Nesterov_GR and Nesterov_SR
+file1 = h5py.File(filedir + '/_Eps_Data_untiln6.hdf5','r')      # All optimizers until n = 6
+file2 = h5py.File(filedir + '/_Eps_Data_n8firsthalf.hdf5','r')  # n = 8, GD and Nesterov_Book
+file3 = h5py.File(filedir + '/_Eps_Data_n8secondhalf.hdf5','r') # n = 8, Nesterov_SBC, Nesterov_GR and Nesterov_SR
 
 # Target files (EDIT HERE)
-file_target = h5py.File(filedir + '/Eps_Data_random.hdf5','w') # File to write all data to
+file_target = h5py.File(filedir + '/Eps_Data_uniform.hdf5','w') # File to write all data to
 
 # Parameters to merge (EDIT HERE)
-model = "Random Ising model"
+model = "Uniform Ising model"
 n_list = [2,4,6,8]
 optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']
 eps_list = [0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
@@ -124,7 +124,7 @@ for n in n_list:
 
         # Merge average iterations per epsilon (for each epsilon that was tested)
         if merge_all:
-            for eps in eps_list[0:eps_list.index(best_eps)+2]:
+            for epsilon in eps_list[0:eps_list.index(best_eps)+2]:
                 eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
                 eps_group.create_dataset('Total iterations', data=read_file[path + '/epsilon = {}/Total iterations'.format(epsilon)][()])
    

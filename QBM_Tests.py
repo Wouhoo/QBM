@@ -11,10 +11,10 @@ from QBM_Main import QBM, create_H, filedir
 #%%% TESTS %%%
 
 # Test parameters (EDIT HERE)
-model_list = ["Random Ising model"] #, "Uniform Ising model]"                               # Which models to try
+model_list = ["Uniform Ising model"]                               # Which models to try
 # Currently best step size values have only been tuned for Random Ising model (uniform is still in progress), so don't try Uniform Ising yet!
 n_list = [8]                                                                                # Which qubit amounts to try. WARNING: Tests for large n (8 and up) can take very long!
-optimizer_list = ['Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']                             # Which optimizers to try
+optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']                             # Which optimizers to try
 ratio_list = {'Uniform Ising model': [0.2, 0.5, 0.8, 0.9, 0.99, 1, 1.01, 1.1, 1.2, 1.5, 2],
               'Random Ising model': [1, 1, 1, 1, 1]}                                        # J/h ratios to try (this only matters for the Uniform Ising model)
 no_inits = 10                                                                               # Number of different initializations to average over (to reduce randomness due to initialization)
@@ -22,14 +22,14 @@ no_inits = 10                                                                   
 # QBM parameters (EDIT HERE)
 beta = 1            # Inverse Boltzmann temperature
 kmin = 3            # For Nesterov_SR: minimum number of iterations between restarts
-precision = 1e-6    # Precision: the QBM is done learning when the norm of the weight update is smaller than this number. 
+precision = 1e-7    # Precision: the QBM is done learning when the norm of the weight update is smaller than this number. 
                     # WARNING: A high target precision may make the testing process take very long!
-max_qbm_it = 100000 # Max number of iterations before the learning process is cut off
+max_qbm_it = 1000000 # Max number of iterations before the learning process is cut off
 q = 1e-3            # For Nesterov_Book: used in calculating the momentum parameter
 alpha0 = np.sqrt(q) # For Nesterov_Book: used in calculating the momentum parameter
 
 # Open files
-f = h5py.File(filedir + '/Data_n8secondhalf_1e-6.hdf5','w')
+f = h5py.File(filedir + '/Data_n8_unif_1e-7.hdf5','w')
 eps_file = h5py.File(filedir + '/Eps_Data_short_modified.hdf5','r') # File containing best epsilon values
 
 ### RUN TESTS & SAVE DATA USING h5py ###
@@ -118,3 +118,6 @@ for model in model_list:
 
 total_time_end = time()
 print("---------- Tests finished on " + datetime.fromtimestamp(total_time_end).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(total_time_end - total_time_start) + " seconds ----------")
+
+f.close()
+eps_file.close()
