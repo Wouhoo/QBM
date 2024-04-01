@@ -37,91 +37,96 @@ f = h5py.File(filedir + '/Eps_Data_random.hdf5','a')
 total_time_start = time()
 print("---------- Commencing Tuning on " + datetime.fromtimestamp(total_time_start).strftime("%d-%m-%Y %H:%M:%S") + " ----------")
 
-for model in model_list:
-    print("### {} ###".format(model))
-    # Read model group, or create it if it doesn't exist
-    try:
-        model_group = f[model]
-    except:
-        model_group = f.create_group(model)
-
-    uniform_weights = (model == "Uniform Ising model")
-    
-    for n in n_list:
-        print("Starting n = {}".format(n))
-        # Read n group, or create it if it doesn't exist
+try:
+    for model in model_list:
+        print("### {} ###".format(model))
+        # Read model group, or create it if it doesn't exist
         try:
-            n_group = model_group["n = {}".format(n)]
+            model_group = f[model]
         except:
-            n_group = model_group.create_group("n = {}".format(n))
-            n_group.attrs['n'] = n
+            model_group = f.create_group(model)
 
-        for optimizer in optimizer_list:
-            print("\t Starting optimizer {}".format(optimizer))
-            # Read optimizer group, or create it if it doesn't exist
+        uniform_weights = (model == "Uniform Ising model")
+        
+        for n in n_list:
+            print("Starting n = {}".format(n))
+            # Read n group, or create it if it doesn't exist
             try:
-                opt_group = n_group[optimizer]
+                n_group = model_group["n = {}".format(n)]
             except:
-                opt_group = n_group.create_group(optimizer)
-                opt_group.attrs['Optimizer'] = optimizer
+                n_group = model_group.create_group("n = {}".format(n))
+                n_group.attrs['n'] = n
 
-            rand_seed = np.random.randint(1, 100000) # To ensure each epsilon has the same initialization
-            iters_per_eps = [] # Keep track of how many iterations are taken for each epsilon
-            first_eps = True
-
-            for epsilon in eps_list:
-                print("\t\t Starting epsilon = {}".format(epsilon)) # DEBUG
-                np.random.seed(rand_seed)
-                start_time = time() # To time how long execution takes
-                # Read epsilon group, or create it if it doesn't exist
+            for optimizer in optimizer_list:
+                print("\t Starting optimizer {}".format(optimizer))
+                # Read optimizer group, or create it if it doesn't exist
                 try:
-                    eps_group = opt_group["epsilon = {}".format(epsilon)]
-                    # If epsilon group already exists, check if it already has data
-                    try:
-                        test = eps_group['Total iterations'][()]
-                    except: # If not, continue testing
-                        print("\t\t Epsilon group already exists, but has no data. Commencing testing")
-                    else:   # If data does exist, move on to next epsilon
-                        print("\t\t Epsilon group already exists with data, moving on to next epsilon")
-                        iters_per_eps.append(test)
-                        continue
+                    opt_group = n_group[optimizer]
                 except:
-                    eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
-                    eps_group.attrs['epsilon'] = epsilon
-                
-                avg_iterations = [] # Stores total iterations per Hamiltonian & seed, to average over later
+                    opt_group = n_group.create_group(optimizer)
+                    opt_group.attrs['Optimizer'] = optimizer
 
-                for ratio in ratio_list[model]:
-                    # Create Hamiltonian & initialize QBM
-                    H, H_params_w, H_params_b = create_H(n, uniform_weights, ratio)
-                    eta = expm(-beta*H)/expm(-beta*H).trace()
-                    My_QBM = QBM(eta, n, beta)
+                rand_seed = np.random.randint(1, 100000) # To ensure each epsilon has the same initialization
+                iters_per_eps = [] # Keep track of how many iterations are taken for each epsilon
+                first_eps = True
 
-                    # Train QBM for various initializations
-                    for run in range(no_inits):
-                        My_QBM.learn(optimizer=optimizer, q=q, alpha0=alpha0, kmin=kmin, max_qbm_it=max_qbm_it, precision=precision, epsilon=epsilon, track_all=False)
-                        avg_iterations.append(My_QBM.qbm_it) 
+                for epsilon in eps_list:
+                    print("\t\t Starting epsilon = {}".format(epsilon)) # DEBUG
+                    np.random.seed(rand_seed)
+                    start_time = time() # To time how long execution takes
+                    # Read epsilon group, or create it if it doesn't exist
+                    try:
+                        eps_group = opt_group["epsilon = {}".format(epsilon)]
+                        # If epsilon group already exists, check if it already has data
+                        try:
+                            test = eps_group['Total iterations'][()]
+                        except: # If not, continue testing
+                            print("\t\t Epsilon group already exists, but has no data. Commencing testing")
+                        else:   # If data does exist, move on to next epsilon
+                            print("\t\t Epsilon group already exists with data, moving on to next epsilon")
+                            iters_per_eps.append(test)
+                            continue
+                    except:
+                        eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
+                        eps_group.attrs['epsilon'] = epsilon
+                    
+                    avg_iterations = [] # Stores total iterations per Hamiltonian & seed, to average over later
 
-                # Average the number of iterations over different initializations & store it in the data file
-                avg = np.average(avg_iterations)
-                iters = eps_group.create_dataset('Total iterations', data=avg) # Average iterations for this (model, n, optimizer, epsilon) combo
-                iters_per_eps.append(avg)
+                    for ratio in ratio_list[model]:
+                        # Create Hamiltonian & initialize QBM
+                        H, H_params_w, H_params_b = create_H(n, uniform_weights, ratio)
+                        eta = expm(-beta*H)/expm(-beta*H).trace()
+                        My_QBM = QBM(eta, n, beta)
 
-                end_time = time()
-                print("\t\t Finished on " + datetime.fromtimestamp(end_time).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(end_time - start_time) + " seconds, taking " + str(np.average(avg_iterations)) + " iterations on average")
-                
-                # Stop trying new epsilons if the number of iterations has gone up since the last time (we've overshot the optimal epsilon)
-                if(not(first_eps) and avg > iters_per_eps[-2]):
-                    print("\t\t Iterations have gone up, moving on to next optimizer")
-                    break
-                first_eps = False
+                        # Train QBM for various initializations
+                        for run in range(no_inits):
+                            My_QBM.learn(optimizer=optimizer, q=q, alpha0=alpha0, kmin=kmin, max_qbm_it=max_qbm_it, precision=precision, epsilon=epsilon, track_all=False)
+                            avg_iterations.append(My_QBM.qbm_it) 
 
-            # Store the best epsilon for this (model, n, optimizer) combo in the data file
-            best_eps = eps_list[np.argmin(iters_per_eps)]
-            opt_group.create_dataset('Best epsilon', data=best_eps)
-            print("\t Best epsilon: {}".format(best_eps))  
+                    # Average the number of iterations over different initializations & store it in the data file
+                    avg = np.average(avg_iterations)
+                    iters = eps_group.create_dataset('Total iterations', data=avg) # Average iterations for this (model, n, optimizer, epsilon) combo
+                    iters_per_eps.append(avg)
 
-total_time_end = time()
-print("---------- Tuning finished on " + datetime.fromtimestamp(total_time_end).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(total_time_end - total_time_start) + " seconds ----------")
+                    end_time = time()
+                    print("\t\t Finished on " + datetime.fromtimestamp(end_time).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(end_time - start_time) + " seconds, taking " + str(np.average(avg_iterations)) + " iterations on average")
+                    
+                    # Stop trying new epsilons if the number of iterations has gone up since the last time (we've overshot the optimal epsilon)
+                    if(not(first_eps) and avg > iters_per_eps[-2]):
+                        print("\t\t Iterations have gone up, moving on to next optimizer")
+                        break
+                    first_eps = False
 
-f.close()
+                # Store the best epsilon for this (model, n, optimizer) combo in the data file
+                best_eps = eps_list[np.argmin(iters_per_eps)]
+                opt_group.create_dataset('Best epsilon', data=best_eps)
+                print("\t Best epsilon: {}".format(best_eps))  
+
+    total_time_end = time()
+    print("---------- Tuning finished on " + datetime.fromtimestamp(total_time_end).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(total_time_end - total_time_start) + " seconds ----------")
+
+# Even if testing is interrupted, make sure the files are properly closed
+except KeyboardInterrupt:
+    print("Interrupted by user!")
+finally:
+    f.close()

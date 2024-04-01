@@ -85,3 +85,43 @@ for precision in ["1e-1", "1e-2", "1e-3", "1e-4", "1e-5"]:
 
 f.close()
 '''
+
+'''
+#%%% MERGE DATA FILES FOR DIFFERENT PRECISIONS %%%
+# Example of how to merge complete data files for different precisions into one big file
+
+# Source files (EDIT HERE)
+prec_list = ["1e-1", "1e-2", "1e-3", "1e-4", "1e-5", "1e-6"]
+file1 = h5py.File(filedir + '/Data_random_until1e-5.hdf5','r')
+file2 = h5py.File(filedir + '/Data_random_1e-6.hdf5','r')
+
+# Target files (EDIT HERE)
+file_target = h5py.File(filedir + '/Data_random_until1e-6.hdf5','w') # File to write all data to
+
+# PARAMETERS (EDIT HERE)
+model = "Random Ising model"
+n_list = [2,4,6,8]
+optimizer_list = ['GD','Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']
+H_count = 5 # Number of Hamiltonians that were tested for the given model (11 for uniform Ising, 5 for random Ising)
+
+# MERGE DATA
+for i in range(len(prec_list)):
+    for n in n_list:
+        for H_counter in range(1, H_count+1): 
+            for optimizer in optimizer_list:
+                path = "{}/n = {}/Hamiltonian {}/{}".format(model, n, H_counter, optimizer)
+                opt_group = file_target.create_group("{}/precision = {}/n = {}/Hamiltonian {}/{}".format(model, prec_list[i], n, H_counter, optimizer))
+                
+                if prec_list[i] == "1e-6":
+                    read_file = file2
+                    opt_group.create_dataset('Model loss - Optimal loss', data = read_file[path + '/Model loss - Optimal loss'][()])
+                    opt_group.create_dataset('Total iterations', data = read_file[path + '/Total iterations'][()])
+                else:
+                    read_file = file1
+                    opt_group.create_dataset('Model loss - Optimal loss', data = read_file['{}/precision = {}/n = {}/Hamiltonian {}/{}'.format(model, prec_list[i], n, H_counter, optimizer) + '/Model loss - Optimal loss'][()])
+                    opt_group.create_dataset('Total iterations', data = read_file['{}/precision = {}/n = {}/Hamiltonian {}/{}'.format(model, prec_list[i], n, H_counter, optimizer) + '/Total iterations'][()])
+   
+file1.close()
+file2.close()
+file_target.close()
+'''

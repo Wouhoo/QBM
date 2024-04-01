@@ -13,13 +13,13 @@ from QBM_Main import filedir
 # (for example, comparing the performance of one optimizer for various Hamiltonians of the same model, precision and n)
 #'''
 # Data file (EDIT HERE)
-f = h5py.File(filedir + '/Data_random_until1e-5.hdf5','r')
+f = h5py.File(filedir + '/Data_random_until1e-6.hdf5','r')
 
 # Parameters for which to compare the optimizers (EDIT HERE)
 model = "Random Ising model"                                                           # Currently only the Random Ising model has data
-precision = "1e-4"                                                                     # Must be in ["1e-1", "1e-2", "1e-3", "1e-4", "1e-5", "1e-6"]
-n = 8                                                                                  # Must be in [2,4,6,8]
-H_number = 3                                                                           # Must be in [1,2,3,4,5] for the Random Ising model
+precision = "1e-6"                                                                     # Must be in ["1e-1", "1e-2", "1e-3", "1e-4", "1e-5", "1e-6"]
+n = 6                                                                                  # Must be in [2,4,6,8]
+H_number = 2                                                                           # Must be in [1,2,3,4,5] for the Random Ising model
 optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Which optimizers to compare
 
 # Plot parameters (EDIT HERE)
@@ -79,13 +79,13 @@ plt.show()
 '''
 # Parameters for which to compare the optimizers (EDIT HERE)
 optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Optimizers to compare
-prec_list = ["1e-2", "1e-3", "1e-4", "1e-5"]                                           # Precisions for which to compare the optimizers
+prec_list = ["1e-2", "1e-3", "1e-4", "1e-5", "1e-6"]                                   # Precisions for which to compare the optimizers
 model_list = ["Random Ising model"]                                                    # Models to average over (currently only Random Ising has data)
 n_list = [2,4,6,8]                                                                     # Qubit amounts to average over
 H_count = 5                                                                            # No. of Hamiltonians to average over (5 for Random Ising)
 
 # Data files
-f = h5py.File(filedir + '/Data_random_until1e-5.hdf5', 'r')
+f = h5py.File(filedir + '/Data_random_until1e-6.hdf5', 'r')
 
 # Plot nr of iterations as a function of precision for each optimizer
 for optimizer in optimizer_list:

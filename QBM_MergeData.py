@@ -5,18 +5,18 @@
 import numpy as np
 import h5py     # To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser, or use the VSCode extension H5Web
 from QBM_Main import filedir
-
+#'''
 #%%% MERGE DATA FILES TOGETHER %%%
 # Example of how to merge data files when testing is split into 3 runs: all optimizer until n = 6, GD and Nesterov_Book for n = 8, and Nesterov_SBC, Nesterov_GR and Nesterov_SR for n = 8
 # All these tests are executed for the same precision, in this case 1e-5
 
 # Source files (EDIT HERE)
-file1 = h5py.File(filedir + '/Data_untiln6_1e-5.hdf5','r')      # All optimizers until n = 6
-file2 = h5py.File(filedir + '/Data_n8firsthalf_1e-5.hdf5','r')  # n = 8, GD and Nesterov_Book
-file3 = h5py.File(filedir + '/Data_n8secondhalf_1e-5.hdf5','r') # n = 8, Nesterov_SBC, Nesterov_GR and Nesterov_SR
+file1 = h5py.File(filedir + '/Data_untiln6_1e-6.hdf5','r')      # All optimizers until n = 6
+file2 = h5py.File(filedir + '/Data_n8firsthalf_1e-6.hdf5','r')  # n = 8, GD and Nesterov_Book
+file3 = h5py.File(filedir + '/Data_n8secondhalf_1e-6.hdf5','r') # n = 8, Nesterov_SBC, Nesterov_GR and Nesterov_SR
 
 # Target files (EDIT HERE)
-file_target = h5py.File(filedir + '/Data_random_1e-5.hdf5','w') # File to write all data to
+file_target = h5py.File(filedir + '/Data_random_1e-6.hdf5','w') # File to write all data to
 
 # Parameters to merge (EDIT HERE)
 model = "Random Ising model"
@@ -46,6 +46,7 @@ file1.close()
 file2.close()
 file3.close()
 file_target.close()
+#'''
 
 '''
 #%%% MERGE DATA FILES FOR DIFFERENT PRECISIONS %%%
