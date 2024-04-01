@@ -13,7 +13,12 @@ Files in this repository:
 - <b>QBM_Misc.py</b>: Various old code snippets for reference. Not documented very well.
 
 - <b>Data folder</b>: Folder containing data files in HDF5 format. The most important files here:
-  - <b>Data_random_until1e-5.hdf5</b>: Results of testing for all optimizers and all n, for the Random Ising model, up to precision 1e-5.
-  - <b>Eps_Data_short_modified.hdf5</b>: Contains the optimal step sizes for all (model, n, optimizer) combo's
+  - <b>Data_random_until1e-6.hdf5</b>: Results of testing for all optimizers and all n, for the Random Ising model, up to precision 1e-6. Data for the Uniform Ising model is still underway.
+  - <b>Eps_Data_short_modified.hdf5</b>: Contains the optimal step sizes for all (model, n, optimizer) combo's.
+
+- <b>Plots folder</b>: Folder containing an assortment of plots. There's currently 3 types:
+  - <b>Iters_vs_precision.png</b>: Shows how many iterations each optimizer takes on average for different precisions. This demonstrates how much Nesterov's scheme (particularly the restarting variants) speeds up the learning process compared to gradient descent.
+  - <b>example_ plots</b>: These show a single run of the QBM each (for one particular model, precision, and number of qubits, as indicated in the name). Useful to get an idea of how the different optimizers learn.
+  - <b>other plots</b>: These show how the various optimizers compare for the same Hamiltonian. Naming convention: <model>_<precision>_<number of qubits>_<Hamiltonian number>.png
 
 To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser, or use the VSCode extension H5Web.
