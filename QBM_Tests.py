@@ -11,7 +11,7 @@ from QBM_Main import QBM, create_H, filedir
 #%%% TESTS %%%
 
 # Test parameters (EDIT HERE)
-model_list = ["Random Ising model"] #, "Uniform Ising model]"                               # Which models to try
+model_list = ["Uniform Ising model"]                               # Which models to try
 # Currently best step size values have only been tuned for Random Ising model (uniform is still in progress), so don't try Uniform Ising yet!
 n_list = [8]                                                                                # Which qubit amounts to try. WARNING: Tests for large n (8 and up) can take very long!
 optimizer_list = ['GD', 'Nesterov_Book']                             # Which optimizers to try

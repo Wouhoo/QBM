@@ -52,8 +52,8 @@ for key, _ in f.items():
 # It appears something went wrong when tuning stepsize for n = 4, which caused the "optimal" step size to be too large in most cases.
 # To avoid having to re-run the code (which would likely take a day or two), I'll manually decrease all optimal step sizes to one value lower using this snippet.
 
-eps_file_complete_random = h5py.File(filedir + '/Eps_Data_complete_random.hdf5','r') # File to write all data to
-eps_file_short_random = h5py.File(filedir + '/Eps_Data_short_random.hdf5','r') # File to write only the best epsilon per (model, n, optimizer) combo to
+eps_file_complete_random = h5py.File(filedir + '/Eps_Data_complete.hdf5','r') 
+eps_file_short_random = h5py.File(filedir + '/Eps_Data_short_random.hdf5','r') 
 
 eps_file_short_modified = h5py.File(filedir + '/Eps_Data_short_modified.hdf5','w')
 
@@ -84,6 +84,94 @@ for precision in ["1e-1", "1e-2", "1e-3", "1e-4", "1e-5"]:
                 print("10000 iterations reached for n = 4, optimizer " + optimizer)
 
 f.close()
+'''
+'''
+#%%% MERGE EPSILON FILES %%%
+# Example of how to merge epsilon files for different models
+
+# Source files (EDIT HERE)
+file1 = h5py.File(filedir + '/Eps_Data_uniform.hdf5','r')      # Uniform Ising model
+file2 = h5py.File(filedir + '/Eps_Data_complete_random.hdf5','r')  # Random Ising model
+
+# Target files (EDIT HERE)
+file_target = h5py.File(filedir + '/Eps_Data_short.hdf5','w') # File to write all data to
+
+# Parameters to merge (EDIT HERE)
+model_list = ["Uniform Ising model", "Random Ising model"]
+n_list = [2,4,6,8]
+optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']
+eps_list = [0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
+merge_all = False  # Whether to merge all data (best epsilon and average iterations per epsilon) or just the best epsilon for each (model, n, optimizer) combo
+
+# Merge data
+for model in model_list:
+    for n in n_list:
+        for optimizer in optimizer_list:
+            path = "{}/n = {}/{}".format(model, n, optimizer)
+            opt_group = file_target.create_group(path)
+
+            # Select the right file to read
+            if model == "Uniform Ising model":
+                read_file = file1
+            else:
+                read_file = file2
+
+            # Merge best epsilon
+            best_eps = read_file[path + '/Best epsilon'][()]
+            opt_group.create_dataset('Best epsilon', data=best_eps)
+
+            # Merge average iterations per epsilon (for each epsilon that was tested)
+            if merge_all:
+                for epsilon in eps_list[0:eps_list.index(best_eps)+2]:
+                    eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
+                    eps_group.create_dataset('Total iterations', data=read_file[path + '/epsilon = {}/Total iterations'.format(epsilon)][()])
+    
+file1.close()
+file2.close()
+file_target.close()
+'''
+'''
+#%% MODIFY NESTEROV EPSILONS
+# It appears something went wrong when tuning stepsize for n = 4, which caused the "optimal" step size to be too large in most cases.
+# To avoid having to re-run the code (which would likely take a day or two), I'll manually decrease all optimal step sizes to one value lower using this snippet.
+
+# Source files (EDIT HERE)
+file1 = h5py.File(filedir + '/Eps_Data_short.hdf5','r')
+
+# Target files (EDIT HERE)
+file_target = h5py.File(filedir + '/Eps_Data_short_modified.hdf5','w') # File to write all data to
+
+# Parameters to merge (EDIT HERE)
+model_list = ["Uniform Ising model", "Random Ising model"]
+n_list = [2,4,6,8]
+optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']
+eps_list = [0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
+merge_all = False  # Whether to merge all data (best epsilon and average iterations per epsilon) or just the best epsilon for each (model, n, optimizer) combo
+
+# Merge data
+for model in model_list:
+    for n in n_list:
+        for optimizer in optimizer_list:
+            path = "{}/n = {}/{}".format(model, n, optimizer)
+            opt_group = file_target.create_group(path)
+
+            read_file = file1
+
+            # Merge best epsilon
+            best_eps = read_file[path + '/Best epsilon'][()]
+            if n == 4 and optimizer in ['GD', 'Nesterov_Book']:
+                opt_group.create_dataset('Best epsilon', data=eps_list[eps_list.index(best_eps)-1])
+            else:
+                opt_group.create_dataset('Best epsilon', data=best_eps)
+
+            # Merge average iterations per epsilon (for each epsilon that was tested)
+            if merge_all:
+                for epsilon in eps_list[0:eps_list.index(best_eps)+2]:
+                    eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
+                    eps_group.create_dataset('Total iterations', data=read_file[path + '/epsilon = {}/Total iterations'.format(epsilon)][()])
+    
+file1.close()
+file_target.close()
 '''
 
 '''
