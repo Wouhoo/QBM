@@ -19,6 +19,6 @@ Files in this repository:
 - <b>Plots folder</b>: Folder containing an assortment of plots. There's currently 3 types:
   - <b>Iters_vs_precision.png</b>: Shows how many iterations each optimizer takes on average for different precisions. This demonstrates how much Nesterov's scheme (particularly the restarting variants) speeds up the learning process compared to gradient descent.
   - <b>example_ plots</b>: These show a single run of the QBM each (for one particular model, precision, and number of qubits, as indicated in the name). Useful to get an idea of how the different optimizers learn.
-  - <b>other plots</b>: These show how the various optimizers compare for the same Hamiltonian. Naming convention: <model>_<precision>_<number of qubits>_<Hamiltonian number>.png
+  - <b>other plots</b>: These show how the various optimizers compare for the same Hamiltonian. Naming convention: \<model>\_\<precision>\_\<number of qubits>\_\<Hamiltonian number>.png
 
 To easily view HDF5 files, try myhdf5.hdfgroup.org in your browser, or use the VSCode extension H5Web.
