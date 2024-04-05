@@ -16,9 +16,9 @@ from QBM_Main import QBM, create_H, filedir
 
 # Test parameters (EDIT HERE)
 eps_list= [0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]                                       # Which stepsizes to try
-model_list = ["Random Ising model"] #, "Uniform Ising model]"                               # Which models to try
+model_list = ["Random Ising model", "Uniform Ising model"]                               # Which models to try
 n_list = [2,4,6,8]                                                                          # Which qubit amounts to try
-optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']      # Which optimizers to try
+optimizer_list = ['Adam']      # Which optimizers to try
 ratio_list = {'Uniform Ising model': [0.2, 0.5, 0.8, 0.9, 0.99, 1, 1.01, 1.1, 1.2, 1.5, 2],
               'Random Ising model': [1, 1, 1, 1, 1]}                                        # J/h ratios to average over (this only matters for the Uniform Ising model)
 no_inits = 10                                                                               # Number of different initializations to average over (to reduce randomness in efficiency due to the initialization)
@@ -32,7 +32,7 @@ max_qbm_it = 10000  # Max number of iterations before the learning process is cu
 q = 1e-3            # For Nesterov_Book: used in calculating the momentum parameter
 alpha0 = np.sqrt(q) # For Nesterov_Book: used in calculating the momentum parameter
 
-f = h5py.File(filedir + '/Eps_Data_random.hdf5','a')
+f = h5py.File(filedir + '/Eps_Data_Adam.hdf5','a')
 
 total_time_start = time()
 print("---------- Commencing Tuning on " + datetime.fromtimestamp(total_time_start).strftime("%d-%m-%Y %H:%M:%S") + " ----------")

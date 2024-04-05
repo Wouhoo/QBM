@@ -51,7 +51,7 @@ opt_loss = beta * (eta @ H_exact).trace() + np.log(expm(-beta * H_exact).trace()
 # Generate & learn QBM
 MyQBM = QBM(eta, n, 1)
 #np.random.seed(15163)   # To fix initialization (useful for comparing different parameters with the same initialization)
-MyQBM.learn('GD', precision=1e-4, epsilon=0.2)
+MyQBM.learn('GD', noise=0, precision=1e-4, epsilon=0.2)
 
 # Uncomment to see what the learned weights look like & how long learning took
 print("Learned J:")
@@ -73,7 +73,7 @@ xlim = MyQBM.qbm_it # To limit x axis on the right side
 # Plot model loss - optimal loss
 plt.subplot(2,2,1)
 plt.plot(MyQBM.loss_QBM_track - opt_loss, label="Model loss - Optimal loss")
-#plt.yscale("log")
+plt.yscale("log")
 plt.title("Evolution of QBM loss")
 plt.xlabel("Iteration")
 plt.ylabel("Loss")
@@ -82,17 +82,20 @@ if(close_up):
 plt.xlim((0,xlim))
 plt.legend()
 
-# Loss difference per step
-#plt.subplot(2,2,2)
-#plt.plot(QBM.dl_QBM_track)
-#plt.yscale("log")
-#plt.title("QBM loss difference in each step")
-#plt.xlabel("Iteration")
-#plt.ylabel("dl")
-#plt.legend()
+# Plot average absolute gradient
+plt.subplot(2,2,2)
+plt.plot(MyQBM.grad_QBM_track, label="Average absolute gradient")
+plt.yscale("log")
+plt.title("Evolution of average absolute gradient")
+plt.xlabel("Iteration")
+plt.ylabel("Average absolute gradient")
+if(close_up):
+    plt.ylim(-eps, eps) # For a close-up
+plt.xlim((0,xlim))
+plt.legend()
 
 # Plot model <sigma_x> vs target <sigma_x>
-plt.subplot(2,2,2)
+plt.subplot(2,2,3)
 plt.plot([dic['sigma_x'] for dic in MyQBM.stat_QBM_track], label=["model <sigma_x>[{}]".format(i) for i in range(MyQBM.n)])
 for i in range(MyQBM.n):
     plt.axhline(y=MyQBM._target_stat['sigma_x'][i], color='C{}'.format(i), linestyle='--', label="true <sigma_x[{}]>".format(i))

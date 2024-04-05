@@ -79,33 +79,24 @@ plt.show()
 '''
 # Parameters for which to compare the optimizers (EDIT HERE)
 optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Optimizers to compare
-prec_list = ["1e-2", "1e-3", "1e-4", "1e-5", "1e-6"]                                   # Precisions for which to compare the optimizers
-model_list = ["Random Ising model"]                                                    # Models to average over (currently only Random Ising has data)
-n_list = [2,4,6,8]                                                                     # Qubit amounts to average over
-H_count = 5                                                                            # No. of Hamiltonians to average over (5 for Random Ising)
+prec_list = [1e-02, 1e-03, 1e-04, 1e-05, 1e-06, 1e-07]                                 # Precisions for which to compare the optimizers
+model_list = "Random Ising model"                                                      # Model to do the comparison for
+n_list = 4                                                                             # Amount of qubits to do the comparison for
+H_number = 2                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
+reverse_plot = True                                                                    # Whether to reverse the x-axis or not
 
 # Data files
-f = h5py.File(filedir + '/Data_random_until1e-6.hdf5', 'r')
+f = h5py.File(filedir + '/Data_iters_vs_precision_random.hdf5', 'r')
 
 # Plot nr of iterations as a function of precision for each optimizer
 for optimizer in optimizer_list:
-    total_iters = []
-    
-    for precision in prec_list:
-        iters = []
-        
-        for model in model_list:
-            for n in n_list:
-                for H_counter in range(1,H_count+1):
-                    path = '{}/precision = {}/n = {}/Hamiltonian {}/{}'.format(model, precision, n, H_counter, optimizer)
-                    iters.append(f[path + '/Total iterations'][()])
-        
-        total_iters.append(np.average(iters)) # No. of iterations for this (precision, optimizer) combo averaged over all models, n and H
-        
-    plt.plot(prec_list, total_iters, marker='o', label=optimizer) # Add line for this optimizer to plot
+    total_iters = f['{}/n = {}/Hamiltonian {}/{}/Total iterations to reach prec_list precisions'.format(model, n, H_counter, optimizer)][()]
+    plt.plot(x=np.log(prec_list), y=total_iters, marker='o', label=optimizer) # Add line for this optimizer to plot
 
-plt.xlabel("Precision")
+plt.xlabel("log(Precision)")
 plt.ylabel("No. of iterations")
+if(reverse_plot):
+    plt.xlim(max(prec_list), min(prec_list))
 plt.legend()      
 plt.show()
 '''

@@ -1,5 +1,7 @@
 ### QBM TESTS ###
 # Run tests to find out how long the QBM takes to learn for certain parameter combinations
+# This test suite is specifically to compare the speed of different optimizers at learning the same Hamiltonian for different precisions.
+# The model, number of qubits and (in case of Uniform Ising) J/h ratio are fixed in this case.
 
 import numpy as np
 from scipy.linalg import expm
@@ -11,26 +13,24 @@ from QBM_Main import QBM, create_H, filedir
 #%%% TESTS %%%
 
 # Test parameters (EDIT HERE)
-model_list = ["Uniform Ising model"]                               # Which models to try
-# Currently best step size values have only been tuned for Random Ising model (uniform is still in progress), so don't try Uniform Ising yet!
-n_list = [8]                                                                                # Which qubit amounts to try. WARNING: Tests for large n (8 and up) can take very long!
-optimizer_list = ['Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']                             # Which optimizers to try
-ratio_list = {'Uniform Ising model': [0.2, 0.5, 0.8, 0.9, 0.99, 1, 1.01, 1.1, 1.2, 1.5, 2],
-              'Random Ising model': [1, 1, 1, 1, 1]}                                        # J/h ratios to try (this only matters for the Uniform Ising model)
-no_inits = 10                                                                               # Number of different initializations to average over (to reduce randomness due to initialization)
+model_list = ["Random Ising model"]                                                     # Which models to try
+n_list = [2,4,6,8]                                                                      # Which qubit amounts to try. WARNING: Tests for large n (8 and up) can take very long!
+optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']  # Which optimizers to try
+ratio_list = {'Uniform Ising model': [0.2, 0.5, 0.8, 0.95, 1, 1.05, 1.2, 1.5, 2],
+              'Random Ising model': [1, 1, 1]}                                          # J/h ratios to try (this only matters for the Uniform Ising model)
+no_inits = 10                                                                           # Number of different initializations to average over (to reduce randomness due to initialization)
 
 # QBM parameters (EDIT HERE)
-beta = 1            # Inverse Boltzmann temperature
-kmin = 3            # For Nesterov_SR: minimum number of iterations between restarts
-precision = 1e-4    # Precision: the QBM is done learning when the norm of the weight update is smaller than this number. 
-                    # WARNING: A high target precision may make the testing process take very long!
-max_qbm_it = 10000 # Max number of iterations before the learning process is cut off
-q = 1e-3            # For Nesterov_Book: used in calculating the momentum parameter
-alpha0 = np.sqrt(q) # For Nesterov_Book: used in calculating the momentum parameter
+beta = 1                                         # Inverse Boltzmann temperature
+kmin = 3                                         # For Nesterov_SR: minimum number of iterations between restarts
+prec_list = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7] # List of target precisions (we track how many iterations the QBM takes to reach each of these)
+max_qbm_it = 1000000                             # Max number of iterations before the learning process is cut off
+q = 1e-3                                         # For Nesterov_Book: used in calculating the momentum parameter
+alpha0 = np.sqrt(q)                              # For Nesterov_Book: used in calculating the momentum parameter
 
 # Open files
-f = h5py.File(filedir + '/Data_n8secondhalf_1e-4_unif.hdf5','w')
-eps_file = h5py.File(filedir + '/Eps_Data_short_modified.hdf5','r') # File containing best epsilon values
+f = h5py.File(filedir + '/Data_iters_vs_precision_random.hdf5','a') # File to write data to
+eps_file = h5py.File(filedir + '/Eps_Data_short_modified.hdf5','r') # File containing best stepsize values
 
 ### RUN TESTS & SAVE DATA USING h5py ###
 total_time_start = time()
@@ -92,28 +92,31 @@ try:
                             continue
                     except:
                         opt_group = H_group.create_group(optimizer)
-                        opt_group.attrs['Optimizer'] = optimizer
+                        opt_group.attrs['optimizer'] = optimizer
                         
                     start_time = time() # To time how long execution takes
                     
-                    avg_iterations = [] # Stores total iterations per seed, to average over later
+                    avg_iterations = [] # Stores iterations required to reach the precisions in prec_list for each seed, to average over later
                     first_loop = True
                     epsilon = eps_file["{}/n = {}/{}/Best epsilon".format(model, n, optimizer)][()]
                     
                     for seed in seed_list:
-                        # Train the QBM & store how many iterations it takes
+                        # Train the QBM & store how many iterations it takes to reach the precisions in prec_list
                         np.random.seed(seed)
-                        My_QBM.learn(optimizer=optimizer, q=q, alpha0=alpha0, kmin=kmin, max_qbm_it=max_qbm_it, precision=precision, epsilon=epsilon, track_all=False)
-                        avg_iterations.append(My_QBM.qbm_it)
+                        My_QBM.learn(optimizer=optimizer, q=q, alpha0=alpha0, kmin=kmin, max_qbm_it=max_qbm_it, precision=prec_list, epsilon=epsilon, track_all=False)
+                        avg_iterations.append(My_QBM.prec_QBM_track)
                         # Also store the loss per iteration for one seed (for plotting purposes)
-                        if first_loop: 
+                        #if first_loop: 
+                        if My_QBM.qbm_it == max_qbm_it: # DEBUG
                             loss = opt_group.create_dataset('Model loss - Optimal loss', data=My_QBM.loss_QBM_track-opt_loss)
+                            grad = opt_group.create_dataset('Average absolute gradient', data=My_QBM.grad_QBM_track)
                             first_loop = False
                             
-                    # Average the number of iterations over different initializations & store it in the data file
-                    iters = opt_group.create_dataset('Total iterations', data=np.average(avg_iterations))
+                    # Average the number of iterations to reach prec_list over different initializations & store it in the data file
+                    print(np.array(avg_iterations).shape)
+                    iters = opt_group.create_dataset('Total iterations to reach prec_list precisions', data=np.average(avg_iterations, axis=0))
                     end_time = time()
-                    print("\t\t Finished on " + datetime.fromtimestamp(end_time).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(end_time - start_time) + " seconds, taking " + str(np.average(avg_iterations)) + " iterations on average")
+                    print("\t\t Finished on " + datetime.fromtimestamp(end_time).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(end_time - start_time) + " seconds")
 
                 H_counter += 1 # Move on to next H
 

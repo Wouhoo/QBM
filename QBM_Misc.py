@@ -10,6 +10,21 @@ from QBM_Main import filedir
 #f.close()
 #eps_file.close()
 
+x = 1e-2
+print('{:.0e}'.format(x))
+print(np.ndim(x))
+
+a = [[3,1,1],[2,2,2],[3,3,3]]
+print(np.average(a, axis=0))
+
+'''
+prec_list = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
+
+print("Precisions were reached at the following numbers of iterations:")
+for i in range(len(prec_list)):
+    print("{:.0e}: {}".format(prec_list[i], MyQBM.prec_QBM_track[i]))
+'''
+
 '''
 # Test
 eps_file = h5py.File(filedir + '\\Eps_Data.hdf5','r')
@@ -130,7 +145,7 @@ file1.close()
 file2.close()
 file_target.close()
 '''
-'''
+#'''
 #%% MODIFY NESTEROV EPSILONS
 # It appears something went wrong when tuning stepsize for n = 4, which caused the "optimal" step size to be too large in most cases.
 # To avoid having to re-run the code (which would likely take a day or two), I'll manually decrease all optimal step sizes to one value lower using this snippet.
@@ -159,7 +174,7 @@ for model in model_list:
 
             # Merge best epsilon
             best_eps = read_file[path + '/Best epsilon'][()]
-            if n == 4 and optimizer in ['GD', 'Nesterov_Book']:
+            if n == 4 and optimizer in ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']:
                 opt_group.create_dataset('Best epsilon', data=eps_list[eps_list.index(best_eps)-1])
             else:
                 opt_group.create_dataset('Best epsilon', data=best_eps)
@@ -172,7 +187,7 @@ for model in model_list:
     
 file1.close()
 file_target.close()
-'''
+#'''
 
 '''
 #%%% MERGE DATA FILES FOR DIFFERENT PRECISIONS %%%

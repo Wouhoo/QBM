@@ -110,7 +110,7 @@ class QBM():
         self._op_ar_z, self._op_ar_x, self._op_ar_zz = make_op_arrays(n)
     
     ### EXTERNAL (PUBLIC) METHODS ###
-    def learn(self, optimizer, q=1e-3, alpha0=np.sqrt(1e-3), kmin=3, max_qbm_it=10000, precision=1e-4, epsilon=0.05, scale=0.5, track_all=True):
+    def learn(self, optimizer, noise=0, q=1e-3, alpha0=np.sqrt(1e-3), kmin=3, beta1=0.9, beta2=0.999, adam_eps=1e-8, max_qbm_it=10000, precision=1e-4, epsilon=0.05, scale=0.5, track_all=True):
         '''
         Function for learning the QBM, based on the Ising model: H = sum J[i,j] sigma_z[i] sigma_z[j] + sum h[i] sigma_x[i]
 
@@ -123,25 +123,36 @@ class QBM():
             - 'Nesterov_SBC': Original Nesterov scheme with modified momentum parameter, taken from the paper by Su, Boyd and Candes (2015).
             - 'Nesterov_GR': Gradient Restarting Nesterov scheme, as proposed by O'Donoghue and Candes (2012).
             - 'Nesterov_SR': Speed Restarting Nesterov scheme, as proposed by Su, Boyd and Candes (2015).
-        kmin : positive int, optional
-            Used only if optimizer == Nesterov_SR; the minimum number of iterations between restarts.
+            - 'Adam': ADAptive Momentum optimizer proposed by Kingma and Ba (2017)
+        noise : positive float, optional
+            How much noise there should be in the calculation of model expectation values.
+            If >0, an unbiased noise sample with the given noise as standard deviation is added to each expectation value calculation.
         q : positive float, optional
             Used only if optimizer == Nesterov_Book; used for calculating the momentum parameter.
             q = mu/L is the ratio between the function's strong convexity constant and its Lipschitz constant. 
             Since this is difficult to compute in general, it is treated as a hyperparameter here.
         alpha0 : positive float in (0,1), optional
             Used only if optimizer == Nesterov_Book; initialization for the alpha parameter, used in calculating the momentum parameter.
+        kmin : positive int, optional
+            Used only if optimizer == Nesterov_SR; the minimum number of iterations between restarts.
+        beta1 : positive float in (0,1), optional
+            Used only if optimizer == Adam; the exponential decay rate of the first momentum.
+        beta2 : positive float in (0,1), optional
+            Used only if optimizer == Adam; the exponential decay rate of the second momentum.
+        adam_eps : small positive float, optional
+            Used only if optimizer == Adam; a small positive constant used to guarantee numerical stability in calculations.
         max_qbm_it : positive int, optional
             Max number of training iterations of the QBM (default 10000).
-        precision: positive float, optional
-            The desired precision of the QBM's approximation of the data (default 1e-4).
+        precision: positive float or array of floats sorted from highest to lowest, optional
+            If single float: the desired precision of the QBM's approximation of the data (default 1e-4).
             With the current implementation, this means the QBM will stop learning when the norm of the weight update in an iteration is smaller than this number.
+            If array of floats: the QBM will keep learning until the last precision is reached, but will also store at how many iterations the other precisions are reached.
         epsilon : positive float, optional
             Step size of the optimization schemes (default 0.05)
         scale : positive float, optional
             Standard deviation of the weight intialization (default 0.5)
         track_all: boolean, optional
-            Whether to track all statistics of the QBM (default) or just the loss and total iterations (faster)
+            Whether to track all statistics of the QBM (default) or just the loss, log(gradient) and total iterations (faster)
             
         Returns
         ----------
@@ -149,7 +160,12 @@ class QBM():
         {'J','h'}
         '''
         self._epsilon = epsilon
-        self._precision = precision
+        if np.ndim(precision) == 0: # precision is a scalar
+            precision = [precision]
+        # otherwise, precision is an array. Regardless:
+        self._prec_QBM_track = []
+        self._precision = precision[0]
+        prec_counter = 0
         
         # Initialize weights randomly
         h = np.random.normal(loc=0, scale=scale, size=self.n)    
@@ -164,7 +180,7 @@ class QBM():
         J_prev = J.copy()
         
         # Auxiliary variables for the Nesterov schemes
-        if(optimizer != 'GD'):            
+        if(optimizer in ['Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR']):            
             h_nest = h.copy()
             J_nest = J.copy()
         
@@ -172,6 +188,17 @@ class QBM():
         if(optimizer == 'Nesterov_Book'):
             alpha = alpha0
             alpha_prev = alpha0
+
+        # Auxiliary variables for Adam scheme:
+        if(optimizer == 'Adam'):
+            mJ = np.zeros((self.n, self.n))
+            mJ_hat = np.zeros((self.n, self.n))
+            vJ = np.zeros((self.n, self.n))
+            vJ_hat = np.zeros((self.n, self.n))
+            mh = np.zeros(self.n)
+            mh_hat = np.zeros(self.n)
+            vh = np.zeros(self.n)
+            vh_hat = np.zeros(self.n)
         
         # Compute initial Hamiltonian
         self._H_m_matrix = self._give_H_m_matrix(J, h)
@@ -181,6 +208,7 @@ class QBM():
         
         # Initialize trackers
         self._loss_QBM_track = []
+        self._grad_QBM_track = []
         if(track_all):
             self._dl_QBM_track = []
             self._J_QBM_track = []
@@ -216,11 +244,17 @@ class QBM():
 
             #start_time = time() # DEBUG
             
-            self._model_stat['sigma_zz'] = [self._give_expectation(self._rho_m, self._op_ar_zz[i]) for i in range(self.n**2)]
-            self._model_stat['sigma_x'] = [self._give_expectation(self._rho_m, self._op_ar_x[i]) for i in range(self.n)]
+            if noise > 0:
+                self._model_stat['sigma_zz'] = [self._give_expectation(self._rho_m, self._op_ar_zz[i]) + np.random.normal(loc=0, scale=noise) for i in range(self.n**2)]
+                self._model_stat['sigma_x'] = [self._give_expectation(self._rho_m, self._op_ar_x[i]) + np.random.normal(loc=0, scale=noise) for i in range(self.n)]
+            else:
+                self._model_stat['sigma_zz'] = [self._give_expectation(self._rho_m, self._op_ar_zz[i]) for i in range(self.n**2)]
+                self._model_stat['sigma_x'] = [self._give_expectation(self._rho_m, self._op_ar_x[i]) for i in range(self.n)]
             
             dJ = np.array([self._target_stat['sigma_zz'][i] - self._model_stat['sigma_zz'][i] for i in range(self.n**2)]).reshape((self.n, self.n))
             dh = np.array([self._target_stat['sigma_x'][i] - self._model_stat['sigma_x'][i] for i in range(self.n)])
+            
+            self._grad_QBM_track.append(np.average(np.abs(self._give_x(dJ, dh)))) # Add the average of the absolute values of the gradients for all parameters
 
             #end_time = time() # DEBUG
             #print("Gradient computation time: " + str(end_time - start_time)) # DEBUG
@@ -228,8 +262,8 @@ class QBM():
             ##### METHOD: Standard GD #####
             #start_time = time() # DEBUG
             if(optimizer == 'GD'):
-                h += -epsilon*dh
-                J += -epsilon*dJ
+                h -= epsilon*dh
+                J -= epsilon*dJ
                 
                 # Make diagonal of J equal to 0 (no self-coupling)
                 self._make_diagonal_zero(J)
@@ -237,6 +271,30 @@ class QBM():
                 # Recompute the Hamiltonian with the current parameters
                 self._H_m_matrix = self._give_H_m_matrix(J, h)
             
+            ##### METHOD: ADAM #####
+            elif(optimizer == 'Adam'):
+                # Compute first and second momentum
+                mJ = beta1 * mJ + (1-beta1) * dJ
+                mh = beta1 * mh + (1-beta1) * dh
+                vJ = beta2 * vJ + (1-beta2) * dJ**2
+                vh = beta2 * vh + (1-beta2) * dh**2
+
+                # Correct bias
+                mJ_hat = mJ / (1 - beta1**self.qbm_it)
+                mh_hat = mh / (1 - beta1**self.qbm_it)
+                vJ_hat = vJ / (1 - beta2**self.qbm_it)
+                vh_hat = vh / (1 - beta2**self.qbm_it)
+
+                # Update parameters
+                J -= epsilon * mJ_hat/(np.sqrt(vJ_hat) + adam_eps)
+                h -= epsilon * mh_hat/(np.sqrt(vh_hat) + adam_eps)
+
+                # Make diagonal of J equal to 0 (no self-coupling)
+                self._make_diagonal_zero(J)
+                
+                # Recompute the Hamiltonian with the current parameters
+                self._H_m_matrix = self._give_H_m_matrix(J, h)
+
             ##### METHOD: Nesterov #####
             else:
                 if(optimizer == 'Nesterov_Book'):
@@ -299,8 +357,13 @@ class QBM():
             step_old = step_new
                 
             # Stop learning if the stopping criterion has been reached
-            if step_new < precision:
-                break
+            if step_new < self._precision:
+                self._prec_QBM_track.append(self.qbm_it)
+                if prec_counter == len(precision)-1: # final precision has been reached; stop learning
+                    break
+                else:                                # save number of iterations required to reach current precision & move on to next precision (this block will never be reached if precision was given as a scalar)
+                    prec_counter += 1
+                    self._precision = precision[prec_counter]
             
             # Update parameters of previous step
             h_prev = h.copy()
@@ -374,6 +437,12 @@ class QBM():
         '''Tracks training loss'''
         return self._loss_QBM_track
     @property
+    def grad_QBM_track(self):
+        '''Tracks average of the absolute values of the gradients for each parameter,
+        i.e. if dJ = [[dJ_11, ..., dJ_1n], ..., [dJ_n1, ..., dJ_nn]] and dh = [dh_1, ..., dh_n] in a given step,
+        then this value is equal to the average of all |dJ_ij| and |dh_i|'''
+        return self._loss_QBM_track
+    @property
     def J_QBM_track(self):
         '''Tracks model J (z-spin coupling weights)'''
         return self._J_QBM_track
@@ -381,6 +450,10 @@ class QBM():
     def h_QBM_track(self):
         '''Tracks model h (x-spin weights)'''
         return self._h_QBM_track
+    @property
+    def prec_QBM_track(self):
+        '''Tracks number of iterations necessary to reach given precisions'''
+        return self._prec_QBM_track
     
     #  nontracked properties 
     @property 
