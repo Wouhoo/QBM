@@ -87,7 +87,7 @@ for i in range(len(prec_list)):
 file_target.close()
 '''
 
-'''
+#'''
 #%%% MERGE EPSILON FILES %%%
 # Example of how to merge different epsilon files (created using the QBM_TuneParams script), similar to the first script
 
@@ -134,4 +134,4 @@ file1.close()
 file2.close()
 file3.close()
 file_target.close()
-'''
+#'''

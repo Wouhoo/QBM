@@ -11,7 +11,7 @@ from QBM_Main import filedir
 # Shows loss evolution and total number of iterations for various optimizers for a specific (precision, n, Hamiltonian) combo.
 # This code can also be used as a base for writing code to compare loss and total iterations when varying *one* parameter 
 # (for example, comparing the performance of one optimizer for various Hamiltonians of the same model, precision and n)
-#'''
+'''
 # Data file (EDIT HERE)
 f = h5py.File(filedir + '/Data_random_until1e-6.hdf5','r')
 
@@ -70,33 +70,33 @@ plt.ylabel("Iterations")
 
 f.close()
 plt.show()
-#'''    
+'''    
 
 #%%% PLOT RESULTS OF TESTS (ITERATIONS VS PRECISION) %%%
 # Plots *average* number of iterations required by various optimizers for various precisions.
 # This code can also be used as a base for writing code to compare total iterations when varying *two or more* parameters
 # (for example, comparing the performance of different optimizers for different n, averaging over all models, precisions and Hamiltonians)
-'''
+#'''
 # Parameters for which to compare the optimizers (EDIT HERE)
 optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Optimizers to compare
 prec_list = [1e-02, 1e-03, 1e-04, 1e-05, 1e-06, 1e-07]                                 # Precisions for which to compare the optimizers
-model_list = "Random Ising model"                                                      # Model to do the comparison for
-n_list = 4                                                                             # Amount of qubits to do the comparison for
-H_number = 2                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
-reverse_plot = True                                                                    # Whether to reverse the x-axis or not
+model = "Random Ising model"                                                      # Model to do the comparison for
+n = 2                                                                             # Amount of qubits to do the comparison for
+H_number = 1                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
+reverse_plot = False                                                                    # Whether to reverse the x-axis or not
 
-# Data files
+# Data file
 f = h5py.File(filedir + '/Data_iters_vs_precision_random.hdf5', 'r')
 
 # Plot nr of iterations as a function of precision for each optimizer
 for optimizer in optimizer_list:
-    total_iters = f['{}/n = {}/Hamiltonian {}/{}/Total iterations to reach prec_list precisions'.format(model, n, H_counter, optimizer)][()]
-    plt.plot(x=np.log(prec_list), y=total_iters, marker='o', label=optimizer) # Add line for this optimizer to plot
+    total_iters = f['{}/n = {}/Hamiltonian {}/{}/Total iterations to reach prec_list precisions'.format(model, n, H_number, optimizer)][()]
+    plt.plot(np.log10(prec_list), total_iters, marker='o', label=optimizer) # Add line for this optimizer to plot
 
-plt.xlabel("log(Precision)")
+plt.xlabel("log$_{10}$(Precision)")
 plt.ylabel("No. of iterations")
 if(reverse_plot):
-    plt.xlim(max(prec_list), min(prec_list))
+    plt.xlim(max(np.log10(prec_list)), min(np.log10(prec_list)))
 plt.legend()      
 plt.show()
-'''
+#'''

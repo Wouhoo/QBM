@@ -87,6 +87,15 @@ def create_H(n, uniform_weights, mag_ratio=1):
         h = np.random.uniform(-1,1,n)
     return (weight_mul(J, op_ar_zz) + weight_mul(h, op_ar_x), J, h)
 
+def create_H_from_param(J,h):
+    '''Creates a target Hamiltonian given its weights.
+    The Hamiltonian will be of the form H = sum J_ij z_i z_j + sum h_i x_i. (Ising model)
+    '''
+    _, op_ar_x, op_ar_zz = make_op_arrays(len(h))
+    return weight_mul(J, op_ar_zz) + weight_mul(h, op_ar_x)
+
+
+
 #%%% QBM CLASS %%%
 class QBM():
     '''

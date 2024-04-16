@@ -51,7 +51,7 @@ opt_loss = beta * (eta @ H_exact).trace() + np.log(expm(-beta * H_exact).trace()
 # Generate & learn QBM
 MyQBM = QBM(eta, n, 1)
 #np.random.seed(15163)   # To fix initialization (useful for comparing different parameters with the same initialization)
-MyQBM.learn('GD', noise=0, precision=1e-4, epsilon=0.2)
+MyQBM.learn('GD', noise=1e-4, precision=1e-4, epsilon=0.2)
 
 # Uncomment to see what the learned weights look like & how long learning took
 print("Learned J:")

@@ -16,7 +16,7 @@ from QBM_Main import QBM, create_H, filedir
 
 # Test parameters (EDIT HERE)
 eps_list= [0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]                                       # Which stepsizes to try
-model_list = ["Random Ising model", "Uniform Ising model"]                               # Which models to try
+model_list = ["Random Ising model"]                               # Which models to try
 n_list = [2,4,6,8]                                                                          # Which qubit amounts to try
 optimizer_list = ['Adam']      # Which optimizers to try
 ratio_list = {'Uniform Ising model': [0.2, 0.5, 0.8, 0.9, 0.99, 1, 1.01, 1.1, 1.2, 1.5, 2],
@@ -70,57 +70,62 @@ try:
                 iters_per_eps = [] # Keep track of how many iterations are taken for each epsilon
                 first_eps = True
 
-                for epsilon in eps_list:
-                    print("\t\t Starting epsilon = {}".format(epsilon)) # DEBUG
-                    np.random.seed(rand_seed)
-                    start_time = time() # To time how long execution takes
-                    # Read epsilon group, or create it if it doesn't exist
-                    try:
-                        eps_group = opt_group["epsilon = {}".format(epsilon)]
-                        # If epsilon group already exists, check if it already has data
+                # Check if this optimizer had already been tested (if there is a best_eps dataset); if not, start testing.
+                try:
+                    opt_group['Best epsilon']
+                    print("\t Optimizer has already been tested, moving on to next optimizer")
+                except:
+                    for epsilon in eps_list:
+                        print("\t\t Starting epsilon = {}".format(epsilon)) # DEBUG
+                        np.random.seed(rand_seed)
+                        start_time = time() # To time how long execution takes
+                        # Read epsilon group, or create it if it doesn't exist
                         try:
-                            test = eps_group['Total iterations'][()]
-                        except: # If not, continue testing
-                            print("\t\t Epsilon group already exists, but has no data. Commencing testing")
-                        else:   # If data does exist, move on to next epsilon
-                            print("\t\t Epsilon group already exists with data, moving on to next epsilon")
-                            iters_per_eps.append(test)
-                            continue
-                    except:
-                        eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
-                        eps_group.attrs['epsilon'] = epsilon
-                    
-                    avg_iterations = [] # Stores total iterations per Hamiltonian & seed, to average over later
+                            eps_group = opt_group["epsilon = {}".format(epsilon)]
+                            # If epsilon group already exists, check if it already has data
+                            try:
+                                test = eps_group['Total iterations'][()]
+                            except: # If not, continue testing
+                                print("\t\t Epsilon group already exists, but has no data. Commencing testing")
+                            else:   # If data does exist, move on to next epsilon
+                                print("\t\t Epsilon group already exists with data, moving on to next epsilon")
+                                iters_per_eps.append(test)
+                                continue
+                        except:
+                            eps_group = opt_group.create_group("epsilon = {}".format(epsilon))
+                            eps_group.attrs['epsilon'] = epsilon
+                        
+                        avg_iterations = [] # Stores total iterations per Hamiltonian & seed, to average over later
 
-                    for ratio in ratio_list[model]:
-                        # Create Hamiltonian & initialize QBM
-                        H, H_params_w, H_params_b = create_H(n, uniform_weights, ratio)
-                        eta = expm(-beta*H)/expm(-beta*H).trace()
-                        My_QBM = QBM(eta, n, beta)
+                        for ratio in ratio_list[model]:
+                            # Create Hamiltonian & initialize QBM
+                            H, H_params_w, H_params_b = create_H(n, uniform_weights, ratio)
+                            eta = expm(-beta*H)/expm(-beta*H).trace()
+                            My_QBM = QBM(eta, n, beta)
 
-                        # Train QBM for various initializations
-                        for run in range(no_inits):
-                            My_QBM.learn(optimizer=optimizer, q=q, alpha0=alpha0, kmin=kmin, max_qbm_it=max_qbm_it, precision=precision, epsilon=epsilon, track_all=False)
-                            avg_iterations.append(My_QBM.qbm_it) 
+                            # Train QBM for various initializations
+                            for run in range(no_inits):
+                                My_QBM.learn(optimizer=optimizer, q=q, alpha0=alpha0, kmin=kmin, max_qbm_it=max_qbm_it, precision=precision, epsilon=epsilon, track_all=False)
+                                avg_iterations.append(My_QBM.qbm_it) 
 
-                    # Average the number of iterations over different initializations & store it in the data file
-                    avg = np.average(avg_iterations)
-                    iters = eps_group.create_dataset('Total iterations', data=avg) # Average iterations for this (model, n, optimizer, epsilon) combo
-                    iters_per_eps.append(avg)
+                        # Average the number of iterations over different initializations & store it in the data file
+                        avg = np.average(avg_iterations)
+                        iters = eps_group.create_dataset('Total iterations', data=avg) # Average iterations for this (model, n, optimizer, epsilon) combo
+                        iters_per_eps.append(avg)
 
-                    end_time = time()
-                    print("\t\t Finished on " + datetime.fromtimestamp(end_time).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(end_time - start_time) + " seconds, taking " + str(np.average(avg_iterations)) + " iterations on average")
-                    
-                    # Stop trying new epsilons if the number of iterations has gone up since the last time (we've overshot the optimal epsilon)
-                    if(not(first_eps) and avg > iters_per_eps[-2]):
-                        print("\t\t Iterations have gone up, moving on to next optimizer")
-                        break
-                    first_eps = False
+                        end_time = time()
+                        print("\t\t Finished on " + datetime.fromtimestamp(end_time).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(end_time - start_time) + " seconds, taking " + str(np.average(avg_iterations)) + " iterations on average")
+                        
+                        # Stop trying new epsilons if the number of iterations has gone up since the last time (we've overshot the optimal epsilon)
+                        if(not(first_eps) and avg > iters_per_eps[-2]):
+                            print("\t\t Iterations have gone up, moving on to next optimizer")
+                            break
+                        first_eps = False
 
-                # Store the best epsilon for this (model, n, optimizer) combo in the data file
-                best_eps = eps_list[np.argmin(iters_per_eps)]
-                opt_group.create_dataset('Best epsilon', data=best_eps)
-                print("\t Best epsilon: {}".format(best_eps))  
+                    # Store the best epsilon for this (model, n, optimizer) combo in the data file
+                    best_eps = eps_list[np.argmin(iters_per_eps)]
+                    opt_group.create_dataset('Best epsilon', data=best_eps)
+                    print("\t Best epsilon: {}".format(best_eps))  
 
     total_time_end = time()
     print("---------- Tuning finished on " + datetime.fromtimestamp(total_time_end).strftime("%d-%m-%Y %H:%M:%S") + " in " + str(total_time_end - total_time_start) + " seconds ----------")

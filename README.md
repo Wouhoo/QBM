@@ -10,6 +10,7 @@ Files in this repository:
 - <b>QBM_Tests_v2.py</b>: Code for running tests with the QBM, to see how quickly it learns with different (hyper)parameter settings. Specifically, this tests for various different models, numbers of qubits, and Hamiltonian parameters how many iterations each optimizer takes to reach certain precisions.
 - <b>QBM_Plot.py</b>: Code for plotting the results of the above tests in various ways.
 - <b>QBM_TuneParams.py</b>: Code for tuning hyperparameters of the QBM, particularly stepsize.
+- <b>QBM_Rates.py</b>: Code for calculating the convergence rates of various optimizers, and their relative speedup compared to eachother.
 - <b>QBM_MergeData.py</b>: When running tests in multiple runs and/or on different devices, this code can be used to merge the resulting data files together.
 - <b>QBM_Misc.py</b>: Various old code snippets for reference. Not documented very well.
 
