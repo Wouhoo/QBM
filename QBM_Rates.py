@@ -13,8 +13,8 @@ from QBM_Main import filedir
 optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Optimizers to compare
 prec_list = [1e-02, 1e-03, 1e-04, 1e-05, 1e-06, 1e-07]                                 # Precisions for which to compare the optimizers
 model = "Random Ising model"                                                      # Model to do the comparison for
-n = 6                                                                             # Amount of qubits to do the comparison for
-H_number = 2                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
+n = 8                                                                             # Amount of qubits to do the comparison for
+H_number = 3                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
 
 # Data file
 f = h5py.File(filedir + '/Data_iters_vs_precision_random.hdf5', 'r')
@@ -83,3 +83,5 @@ rates = calc_rates(f, optimizer_list, prec_list, model, n, H_number)
 print(rates)
 speedups = calc_speedups(rates)
 print(speedups)
+print("Best optimizer for this H: ")
+print(min(rates, key=rates.get))

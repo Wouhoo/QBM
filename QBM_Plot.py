@@ -78,11 +78,11 @@ plt.show()
 # (for example, comparing the performance of different optimizers for different n, averaging over all models, precisions and Hamiltonians)
 #'''
 # Parameters for which to compare the optimizers (EDIT HERE)
-optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Optimizers to compare
+optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR', 'Adam'] # Optimizers to compare
 prec_list = [1e-02, 1e-03, 1e-04, 1e-05, 1e-06, 1e-07]                                 # Precisions for which to compare the optimizers
 model = "Random Ising model"                                                      # Model to do the comparison for
-n = 2                                                                             # Amount of qubits to do the comparison for
-H_number = 1                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
+n = 8                                                                             # Amount of qubits to do the comparison for
+H_number = 3                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
 reverse_plot = False                                                                    # Whether to reverse the x-axis or not
 
 # Data file
