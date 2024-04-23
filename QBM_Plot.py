@@ -82,7 +82,7 @@ optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nestero
 prec_list = [1e-02, 1e-03, 1e-04, 1e-05, 1e-06, 1e-07]                                 # Precisions for which to compare the optimizers
 model = "Random Ising model"                                                      # Model to do the comparison for
 n = 8                                                                             # Amount of qubits to do the comparison for
-H_number = 3                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
+H_number = 2                                                                           # Hamiltonian to do the comparison for (this corresponds to the J/h ratio in case of the Uniform Ising model)
 reverse_plot = False                                                                    # Whether to reverse the x-axis or not
 
 # Data file
