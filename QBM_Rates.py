@@ -10,7 +10,7 @@ from sklearn.linear_model import LinearRegression # For linear fitting
 from QBM_Main import filedir
 
 # Parameters for which to compare the optimizers (EDIT HERE)
-optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR'] # Optimizers to compare
+optimizer_list = ['GD', 'Nesterov_Book', 'Nesterov_SBC', 'Nesterov_GR', 'Nesterov_SR', 'Adam'] # Optimizers to compare
 prec_list = [1e-02, 1e-03, 1e-04, 1e-05, 1e-06, 1e-07]                                 # Precisions for which to compare the optimizers
 model = "Random Ising model"                                                      # Model to do the comparison for
 n = 8                                                                             # Amount of qubits to do the comparison for
@@ -20,7 +20,7 @@ H_number = 3                                                                    
 f = h5py.File(filedir + '/Data_iters_vs_precision_random.hdf5', 'r')
 
 
-def calc_rates(file, optimizer_list, prec_list, model, n, H_number):
+def calc_rates(file, optimizer_list, prec_list, model, n, H_number, plot=False):
     '''
     Function to calculate convergence rates of optimizers and speedup ratios.
 
@@ -38,6 +38,8 @@ def calc_rates(file, optimizer_list, prec_list, model, n, H_number):
         Which qubit amount to compare the optimizers for.
     H_number : positive int, required
         Which Hamiltonian to compare the optimizers for (corresponds to J/h ratio in case of Uniform Ising model).
+    plot : boolean, optional
+        Whether to plot the results as well (default False)
 
     Returns
     ----------
@@ -50,11 +52,21 @@ def calc_rates(file, optimizer_list, prec_list, model, n, H_number):
     for optimizer in optimizer_list:
         y = file['{}/n = {}/Hamiltonian {}/{}/Total iterations to reach prec_list precisions'.format(model, n, H_number, optimizer)][()] # iterations to reach precision
 
-        fit = LinearRegression().fit(x, y) 
+        fit = LinearRegression(fit_intercept = True).fit(x, y) # Choose where if an intercept should be fitted or not
         log_rate = fit.coef_[0] # slope of linear fit = 1/log(R)
         rate = 10**(1/log_rate) # = R
 
         rates[optimizer] = rate
+
+        if plot:
+            plt.scatter(x, y, marker='o', label=optimizer)
+            plt.plot(x, fit.predict(x), linestyle='--')
+
+    if plot:
+        plt.xlabel("log$_{10}$(Precision)")
+        plt.ylabel("No. of iterations")
+        plt.legend()      
+        plt.show()
 
     return rates
 
@@ -79,9 +91,9 @@ def calc_speedups(rates):
     return np.array([[rates[j]/rates[i] for j in range(no_opts)] for i in range(no_opts)])
    
     
-rates = calc_rates(f, optimizer_list, prec_list, model, n, H_number)
+rates = calc_rates(f, optimizer_list, prec_list, model, n, H_number, plot=True)
 print(rates)
-speedups = calc_speedups(rates)
-print(speedups)
+#speedups = calc_speedups(rates)
+#print(speedups)
 print("Best optimizer for this H: ")
 print(min(rates, key=rates.get))
