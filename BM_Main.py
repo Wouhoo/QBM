@@ -17,7 +17,7 @@ def initialize_data(n, P):
     return np.random.choice([-1.,1.],size=(P,n))
 
 def give_H(h, J, data):
-    '''Returns a 1D array of length P, containing the Hamiltonian for each sample (with weights h and J)'''
+    '''Returns a 1D array of length P (=no. of samples in data), containing the Hamiltonian for each sample (with weights h and J)'''
     n = J.shape[0]
     #print((data@((1-np.eye(n))*J)))
     H_int = np.sum(np.multiply((data@((1-np.eye(n))*J)), data), axis = 1)/2
@@ -26,11 +26,11 @@ def give_H(h, J, data):
     return -1.*(H_int + H_loc)
 
 def give_BM_Pstar(h, J, data):
-    '''Returns the non-normalized probability P* for a BM with weights h and J for the data'''
+    '''Returns the non-normalized probability distribution p* for a BM with weights h and J for the data'''
     return np.exp(-give_H(h, J, data))
 
 def give_BM_P(h, J, data):
-    '''Returns the normalized probability P for a BM with weights h and J for the data'''
+    '''Returns the normalized probability p for a BM with weights h and J for the data'''
     Pstar = give_BM_Pstar(h, J, data)
     Z = np.sum(Pstar)
     P = Pstar/Z
@@ -67,7 +67,7 @@ class BM():
         self._all_permutations = self._give_all_permutations(self._n)
         self._all_correlations  = np.einsum('ki, kj-> kij', self._all_permutations, self._all_permutations)
         
-    def learn(self, alpha=0.99, initialize_option='gaussian', max_bm_it=10000, precision=1e-13, epsilon=0.01, scale=1):
+    def learn(self, alpha=0.99, initialize_option='gaussian', max_bm_it=10000, precision=1e-13, epsilon=0.01, scale=1, method='exact'):
         '''
         Function for learning the BM, based on the model H = sum J[i,j] s[i] s[j] + sum h[i] s[i]
 
