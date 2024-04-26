@@ -12,40 +12,38 @@ from time import time
 from scipy.optimize import fsolve
 
 #%%% AUXILIARY FUNCTIONS %%%
-def give_all_permutations(n):
-    #all_perms = 1.*np.ones((2**n,n))
-    all_perms = 1.*np.ones((2**n,n), dtype='float64')
-    ran = np.arange(2**n)
-    for i in range(n):
-        #print(ran%(2**(i+1)))
-        all_perms[ran%(2**(i+1))< 2**i,i] = -1.
-    return all_perms.astype('float64')
+def initialize_data(n, P):
+    '''Generates a random dataset with n neurons and P samples.'''
+    return np.random.choice([-1.,1.],size=(P,n))
 
-def give_H(θ, w, data):
-    ''' gives 1-dim array of length P, containing H  '''
-    n = w.shape[0]
-    #print((data@((1-np.eye(n))*w)))
-    H_int = np.sum(np.multiply((data@((1-np.eye(n))*w)), data), axis = 1)/2
+def give_H(h, J, data):
+    '''Returns a 1D array of length P, containing the Hamiltonian for each sample (with weights h and J)'''
+    n = J.shape[0]
+    #print((data@((1-np.eye(n))*J)))
+    H_int = np.sum(np.multiply((data@((1-np.eye(n))*J)), data), axis = 1)/2
     #print(H_int)
-    H_loc = np.sum(data@θ, axis = 1)
+    H_loc = np.sum(data@h, axis = 1)
     return -1.*(H_int + H_loc)
 
-def give_BM_Pstar(θ, w, data):
-    ''' returns p star, which is not normalized '''
-    return np.exp(-give_H(θ, w, data))
+def give_BM_Pstar(h, J, data):
+    '''Returns the non-normalized probability P* for a BM with weights h and J for the data'''
+    return np.exp(-give_H(h, J, data))
 
-def give_BM_P(θ, w, data):
-    Pstar = give_BM_Pstar(θ, w, data)
+def give_BM_P(h, J, data):
+    '''Returns the normalized probability P for a BM with weights h and J for the data'''
+    Pstar = give_BM_Pstar(h, J, data)
     Z = np.sum(Pstar)
     P = Pstar/Z
     return P, Z
 
-def give_log_likelihood_data(θ, w, data):
-    p ,_ = give_BM_P(θ, w, data)
+def give_log_likelihood_data(h, J, data):
+    '''Returns the log-probability for a BM with weights h and J for the data'''
+    p ,_ = give_BM_P(h, J, data)
     return np.log(p)
 
-def give_log_likelihood(θ, w, data):
-    out = give_log_likelihood_data(θ, w, data)
+def give_log_likelihood(h, J, data):
+    '''Returns the log-likelihood for a BM with weights h and J for the data'''
+    out = give_log_likelihood_data(h, J, data)
     return np.sum(out)/data.shape[0]
 
 
@@ -66,10 +64,10 @@ class BM():
         self._n = data.shape[1]
         self._P = data.shape[0]
         # all permutations
-        self._all_permutations = give_all_permutations(self._n)
+        self._all_permutations = self._give_all_permutations(self._n)
         self._all_correlations  = np.einsum('ki, kj-> kij', self._all_permutations, self._all_permutations)
         
-    def learn(self, η=0.01, max_bm_it=1000, scale=1, alpha=0.99, initialize_option='gaussian', tolerance=1e-13, method='exact'):
+    def learn(self, alpha=0.99, initialize_option='gaussian', max_bm_it=10000, precision=1e-13, epsilon=0.01, scale=1):
         '''
         Function for learning the BM, based on the model H = sum J[i,j] s[i] s[j] + sum h[i] s[i]
 
@@ -86,7 +84,7 @@ class BM():
             The momentum coefficient, i.e. how much of the previous weight update is added to the current one (default 0.99)
         initialize_option : 'gaussian', 'uniform', or 'costum', optional. #*** TODO: Take this out?
             The distribution used to intialize weights (default gaussian)
-        tolerance : (small) positive float, optional
+        precision : (small) positive float, optional
             The desired precision of the BM's approximation of the data (default 1e-13)
             The BM will stop learning if all of its weight updates are less than this number (in absolute value).
         method : string, optional #*** TODO: Take this out?
@@ -98,77 +96,89 @@ class BM():
         {'J','h'}
         '''
         self.convergence = False
-        self.tolerance = tolerance
+        self.precision = precision
 
-        θ, w = self._initialize_BM(self._n, option=initialize_option)
+        h, J = self._initialize_BM(self._n, option=initialize_option)
         self._clamped_stat = self._give_clamped_stat()
         # Momentum, to boost the algorithm
-        dθ_0 = 0
-        dw_0 = 0
+        dh_0 = 0
+        dJ_0 = 0
     
         self._log_likelihood_track = []
-        self._dθ_max_track = []
-        self._dw_max_track = []
+        self._dh_max_track = []
+        self._dJ_max_track = []
         self._max_update_track = []
         
-        #Z = give_Z(θ, w, self._all_permutations)
+        #Z = give_Z(h, J, self._all_permutations)
         
-        self._log_likelihood_track.append(give_log_likelihood(θ, w, self._data))
-        #print(self._give_log_likelihood(θ, w, Z))
+        self._log_likelihood_track.append(give_log_likelihood(h, J, self._data))
+        #print(self._give_log_likelihood(h, J, Z))
         self._bm_it = 0  
         while(self._bm_it<max_bm_it):
-            self._model_stat, Z = self._give_model_stat(θ, w, method=method)
-            dθ = (self._clamped_stat['sigma'] - self._model_stat['sigma'])
-            dw = (self._clamped_stat['sigma_sigma'] - self._model_stat['sigma_sigma'])
+            self._model_stat, Z = self._give_model_stat(h, J)
+            dh = (self._clamped_stat['sigma'] - self._model_stat['sigma'])
+            dJ = (self._clamped_stat['sigma_sigma'] - self._model_stat['sigma_sigma'])
             
-            #print(dθ)
-            #print(dw)
-            θ += η*(dθ.T + alpha*dθ_0)
-            w += η*(dw + alpha*dw_0)
+            #print(dh)
+            #print(dJ)
+            h += epsilon*(dh.T + alpha*dh_0)
+            J += epsilon*(dJ + alpha*dJ_0)
             
-            dθ_0 = np.copy(dθ.T)
-            dw_0 = np.copy(dw)
+            dh_0 = np.copy(dh.T)
+            dJ_0 = np.copy(dJ)
             
             
-            self._log_likelihood_track.append(give_log_likelihood(θ, w, self._data))
-            self._dθ_max_track.append(np.max(abs(dθ)))
-            self._dw_max_track.append(np.max(abs(dw)))
-            #self._log_likelihood_track.append(self._give_log_likelihood(θ, w, Z))
+            self._log_likelihood_track.append(give_log_likelihood(h, J, self._data))
+            self._dh_max_track.append(np.max(abs(dh)))
+            self._dJ_max_track.append(np.max(abs(dJ)))
+            #self._log_likelihood_track.append(self._give_log_likelihood(h, J, Z))
             self._bm_it +=1
             #print('iteration: ', self._bm_it)
-            #print('np.max(|dθ|): ', np.max(abs(dθ)))
+            #print('np.max(|dh|): ', np.max(abs(dh)))
             if (self._give_convergence()):
                 self.convergence = True
                 print('BM reached the criteria')
                 break
         
-        self.θ = θ
-        self.w = w
-        return {'θ':θ, 'w':w}       
+        self.h = h
+        self.J = J
+        return {'J':J, 'h':h}       
      
     ### INTERNAL METHODS ###
-    def _initialize_BM(n, option='gaussian', scale=1):
+    def _initialize_BM(self, n, option='gaussian', scale=1):
+        '''Initializes the BM with random weights chosen the given probability distribution (option)'''
         if option=='gaussian':
             # Initial parameters of BM
-            θ = np.random.normal(loc=0, scale=scale, size=(n, 1))
-            w = np.random.normal(loc=0, scale=scale, size=(n, n))
-            w = w + w.T
-            w = w*(1-np.eye(n))
+            h = np.random.normal(loc=0, scale=scale, size=(n, 1))
+            J = np.random.normal(loc=0, scale=scale, size=(n, n))
+            J = J + J.T
+            J = J*(1-np.eye(n))
 
         elif option== 'uniform':
-            θ = np.random.uniform(low = -1, high =1, size=(n,1))/n
-            w = np.random.uniform(low = -1, high = 1, size=(n,n))
-            w = (w+w.T)/(np.sqrt(n))
-            w = w*(1-np.eye(n))
+            h = np.random.uniform(low = -1, high =1, size=(n,1))/n
+            J = np.random.uniform(low = -1, high = 1, size=(n,n))
+            J = (J+J.T)/(np.sqrt(n))
+            J = J*(1-np.eye(n))
         
         elif option== 'costum':
-            θ = np.ones((n,1))*1.0
-            w = 1.0*np.ones((n,n))
-            w = w*(1-np.eye(n))
+            h = np.ones((n,1))*1.0
+            J = 1.0*np.ones((n,n))
+            J = J*(1-np.eye(n))
                 
-        return θ, w
+        return h, J
+    
+    def _give_all_permutations(self, n):
+        '''Returns all n-bit binary words as a 2^n x n array of floats.'''
+        #all_perms = 1.*np.ones((2**n,n))
+        all_perms = 1.*np.ones((2**n,n), dtype='float64')
+        ran = np.arange(2**n)
+        for i in range(n):
+            #print(ran%(2**(i+1)))
+            all_perms[ran%(2**(i+1))< 2**i,i] = -1.
+        return all_perms.astype('float64')
 
     def _give_clamped_stat(self):
+        '''Returns the clamped expectation value of the data (also known as target stat), as a dictionary of the form {'sigma','sigma_sigma'}.'''
         if not hasattr(self, '_clamped_stat'):
             sigma = self._data.mean(axis=0,keepdims = True)
             sigma_sigma = np.einsum('ki,kj->kij',self._data,self._data).mean(axis=0)
@@ -176,26 +186,16 @@ class BM():
             self._clamped_stat = {'sigma':sigma, 'sigma_sigma':sigma_sigma}
         return self._clamped_stat
     
-    
-    def _give_log_likelihood(self, θ, w, Z):
-        L = 0
-        for s in self._data:
-            ss = np.outer(s,s)
-            # L += (1/2* (w.reshape(-1)@(ss.reshape(-1))) + (θ@s)) - log(Z)
-            #print('ps-Z: ', 1/2* (w.reshape(-1)@(np.outer(s,s).reshape(-1))) + (θ@s) - log(Z))
-            L += log(exp(1/2* (w.reshape(-1)@(np.outer(s,s).reshape(-1))) + (θ@s))/Z)
-        return L/self._P    
-    
-    def _give_model_stat(self, θ, w, method='exact'):
-        if method == 'exact':
-            p,Z = give_BM_P(θ, w, self._all_permutations)
-            sigma = np.einsum('k,ki->i',p,self._all_permutations)
-            sigma_sigma = np.einsum('k,kij->ij', p, self._all_correlations)
+    def _give_model_stat(self, h, J, method='exact'):
+        '''Returns the model expectation value of the BM, as a dictionary of the form {'sigma','sigma_sigma'}.'''
+        p,Z = give_BM_P(h, J, self._all_permutations)
+        sigma = np.einsum('k,ki->i',p,self._all_permutations)
+        sigma_sigma = np.einsum('k,kij->ij', p, self._all_correlations)
     #    elif method == 'MH':
     #        if not hasattr(self, 's0'):
-    #            self.s0 = np.random.choice([-1.,1.],size = (1,w.shape[0]))
+    #            self.s0 = np.random.choice([-1.,1.],size = (1,J.shape[0]))
     #            #print(self.s0)
-    #        samples = give_MH_samples(θ, w, option['n_samples'], self.s0)
+    #        samples = give_MH_samples(h, J, option['n_samples'], self.s0)
     #        #print('samples done')
     #        sigma = np.einsum('ki->i',samples)/option['n_samples']
     #        sigma_sigma = np.einsum('ki,kj->ij',samples,samples)/option['n_samples']
@@ -204,39 +204,43 @@ class BM():
     #    #print('give_model done')
     #    elif method == 'MF_LR':
     #        if option['solve_MF'] == 'fsolve':
-    #            sigma= give_sigma_MF_v2(θ, w)
+    #            sigma= give_sigma_MF_v2(h, J)
     #        elif option['solve_MF'] == 'simple':      
-    #            sigma, _ = give_sigma_MF(θ, w, error_criteria= option['error_criteria'], alpha_MF=option['alpha_MF'], maxiter=option['maxiter'])
-    #        sigma_sigma = give_sigma_sigma_LinearResponse(w, sigma)
+    #            sigma, _ = give_sigma_MF(h, J, error_criteria= option['error_criteria'], alpha_MF=option['alpha_MF'], maxiter=option['maxiter'])
+    #        sigma_sigma = give_sigma_sigma_LinearResponse(J, sigma)
     #        Z = None
         return {'sigma':sigma, 'sigma_sigma':sigma_sigma}, Z 
     
-    def _give_convergence(self, method='exact'):
-        if method == 'exact':
-            self.max_update = max(self._dθ_max_track[self._bm_it-1],self._dθ_max_track[self._bm_it-1])
-            return( self.max_update<self.tolerance)
+    def _give_convergence(self):
+        '''Checks whether the BM has converged or not.'''
+        self.max_update = max(self._dh_max_track[self._bm_it-1],self._dh_max_track[self._bm_it-1])
+        return(self.max_update < self.precision)
     #    elif method == 'MH' or method == 'MF_LR':    
     #        if self._bm_it < self.option['n_grad']:
-    #            self.max_update = max(np.sum(self._dθ_max_track[0:self._bm_it-1 ]),np.sum(self._dw_max_track[0:self._bm_it-1 ]))/self._bm_it
+    #            self.max_update = max(np.sum(self._dh_max_track[0:self._bm_it-1 ]),np.sum(self._dJ_max_track[0:self._bm_it-1 ]))/self._bm_it
     #            outpt = False
     #        else:
-    #            self.max_update = max(np.sum(self._dθ_max_track[self._bm_it-1 -self.option['n_grad']:self._bm_it-1 ]),np.sum(self._dw_max_track[self._bm_it-1 -self.option['n_grad']:self._bm_it-1 ]))/self.option['n_grad']
-    #            output = (self.max_update <self.tolerance)
+    #            self.max_update = max(np.sum(self._dh_max_track[self._bm_it-1 -self.option['n_grad']:self._bm_it-1 ]),np.sum(self._dJ_max_track[self._bm_it-1 -self.option['n_grad']:self._bm_it-1 ]))/self.option['n_grad']
+    #            output = (self.max_update <self.precision)
     #            
     #        self._max_update_track.append(self.max_update)
     #        
     #        return output
     @property
     def log_likelihood_track(self):
+        '''Tracks log likelihood at each step.'''
         return np.array(self._log_likelihood_track)
     @property
-    def dθ_max_track(self):
-        return np.array(self._dθ_max_track)
+    def dh_max_track(self):
+        '''Tracks maximum absolute change in h at each step.'''
+        return np.array(self._dh_max_track)
     @property
-    def dw_max_track(self):
-        return np.array(self._dw_max_track)
-    @property
-    def max_update_track(self):
-        return np.array(self._max_update_track)
+    def dJ_max_track(self):
+        '''Tracks maximum absolute change in J at each step.'''
+        return np.array(self._dJ_max_track)
+    #@property
+    #def max_update_track(self):
+    #    
+    #    return np.array(self._max_update_track)
         
 
