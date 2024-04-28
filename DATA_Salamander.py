@@ -18,13 +18,13 @@ def give_rand_salamander_data(n_neuron = 10):
     Returns
     ----------
     A dictionary of 4 objects:
-    'selected_data' : 953 x n_neuron binary array.
+    'selected_data' : 953 x n_neuron binary array
         The data of the n_neuron randomly selected neurons at 953 time points, chosen from one random experiment.
     'experiment_number' : int
-        The number of the randomly selected experiment
+        The number of the randomly selected experiment.
     'selected_neurons' : 1D array of n_neuron ints
-        The numbers of the randomly selected neurons
-    'all_data' : 283041 x n_neuron binary array.
+        The numbers of the randomly selected neurons.
+    'all_data' : 283041 x n_neuron binary array
         The data of the n_neuron randomly selected neurons across all experiments. Purely for show.
     '''
     n_rows = 160
@@ -48,9 +48,73 @@ def give_rand_salamander_data(n_neuron = 10):
                 j+=1
     return {'selected_data': (2.*selected_data-1).T, 'experiment_number': experiment_number, 'selected_neurons': selected_neurons, 'all_data': (2.*all_data-1).T}
 
+def give_all_permutations(n):
+        '''Returns all n-bit binary words as a 2^n x n array of floats.'''
+        #all_perms = 1.*np.ones((2**n,n))
+        all_perms = 1.*np.ones((2**n,n), dtype='float64')
+        ran = np.arange(2**n)
+        for i in range(n):
+            #print(ran%(2**(i+1)))
+            all_perms[ran%(2**(i+1))< 2**i,i] = -1.
+        return all_perms.astype('float64')
+
+def give_salamander_dens_matrix(n = 10):
+    '''
+    Read data from the Salamander Retina dataset and transform it into a density matrix. 
+    For more info on this dataset, see the give_rand_salamander_data function.
+
+    Parameters
+    ----------
+    n : int, optional
+        The number of neurons to select data for (default 10)
+    
+    Returns
+    ----------
+    A dictionary of 3 objects:
+    'dens_matrix' : 2^n x 2^n density matrix
+        The data of the n randomly selected neurons at 953 time points, chosen from one random experiment, transformed into a 2^n x 2^n target density matrix.
+    'experiment_number' : int
+        The number of the randomly selected experiment.
+    'selected_neurons' : 1D array of n ints
+        The numbers of the randomly selected neurons.
+    '''
+
+    salamander_data = give_rand_salamander_data(n)
+    data = salamander_data['selected_data']
+    no_samples = data.shape[0]
+    perms = give_all_permutations(n)
+
+    q = np.zeros(2**n) # Empirical probability distribution (1D array of size 2^n)
+    for i in range(2**n):
+        perm = perms[i]
+        count = 0
+        for j in range(no_samples):
+            if np.array_equal(data[j], perm):
+                count += 1
+        q[i] = count/no_samples
+
+    #print(q)
+    #print(q.shape)
+    #print(np.sum(q))
+    psi = np.sqrt(q).reshape(2**n,1)
+    eta = psi @ psi.T # 2^n x 2^n density matrix representing the classical data
+
+    return {'dens_matrix': eta, 'experiment_number': salamander_data['experiment_number'], 'selected_neurons': salamander_data['selected_neurons']}
+
 # Example
-#dic = give_rand_salamander_data(20)
+#n = 8
+
+#dic = give_rand_salamander_data(n)
+#print(dic['selected_data'])
 #print(dic['selected_data'].shape)
 #print(dic['experiment_number'])
 #print(dic['selected_neurons'])
 #print(dic['all_data'].shape)
+
+#print('\n')
+
+#dic2 = give_salamander_dens_matrix(n)
+#print(dic2['dens_matrix'])
+#print(dic2['dens_matrix'].shape)
+#print(dic2['experiment_number'])
+#print(dic2['selected_neurons'])

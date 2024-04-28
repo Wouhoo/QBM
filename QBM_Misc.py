@@ -150,7 +150,7 @@ file2.close()
 file3.close()
 file_target.close()
 '''
-#'''
+'''
 #%% MODIFY NESTEROV EPSILONS
 # It appears something went wrong when tuning stepsize for n = 4, which caused the "optimal" step size to be too large in most cases.
 # To avoid having to re-run the code (which would likely take a day or two), I'll manually decrease all optimal step sizes to one value lower using this snippet.
@@ -194,7 +194,7 @@ for model in model_list:
     
 file1.close()
 file_target.close()
-#'''
+'''
 
 '''
 #%%% MERGE DATA FILES FOR DIFFERENT PRECISIONS %%%

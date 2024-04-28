@@ -10,7 +10,9 @@ from DATA_Salamander import give_rand_salamander_data
 n = 8
 P = 100
 max_bm_it = 100000
-precision = 1e-3
+precision = 1e-4
+optimizer = 'Adam'
+epsilon = 0.1 # Step size
 
 # Initialize & learn BM
 ### Random data ###
@@ -23,7 +25,7 @@ print('Selected neurons: ' + str(salamander_data['selected_neurons']))
 data = salamander_data['selected_data']
 
 MyBM = BM(data)
-result = MyBM.learn(max_bm_it=max_bm_it, precision=precision)
+result = MyBM.learn(optimizer, max_bm_it=max_bm_it, precision=precision, epsilon=epsilon)
 
 # Uncomment to see what the learned weights look like & how long learning took
 print("Learned J:")
@@ -57,15 +59,18 @@ plt.legend()
 
 # Max dh & dJ
 plt.subplot(1,2,2)
-plt.plot(MyBM.dh_max_track, label='max dh')
-plt.plot(MyBM.dJ_max_track, label='max dJ')
-plt.axhline(y = MyBM.precision, linestyle='--', label='Required precision')
+plt.plot(MyBM.dh_max_track, label='max abs dh')
+plt.plot(MyBM.dJ_max_track, label='max abs dJ')
+plt.plot(MyBM.step_track, label='max abs parameter change')
+plt.axhline(y = MyBM.precision, linestyle='--', color='C3', label='Required precision')
 plt.xscale("log")
 plt.yscale("log")
-plt.title("Evolution of h")
+plt.title("Evolution of parameter steps")
 plt.xlabel("Iteration")
 plt.ylabel("h")
 plt.xlim((0,xlim))
 plt.legend()
+
+
 
 plt.show()
